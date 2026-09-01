@@ -9,6 +9,7 @@ import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
 import { SelectBusinessTypePage } from "./pages/onboarding/SelectBusinessTypePage";
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
 import { ClientsPage } from "./pages/clients/ClientsPage";
+import { AgendaPage } from "./pages/agenda/AgendaPage";
 
 // Requiere sesión. Si el usuario aún no tiene empresa, lo manda al
 // onboarding antes de dejarlo entrar a cualquier pantalla interna.
@@ -86,6 +87,7 @@ function App() {
       >
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/clients" element={<ClientsPage />} />
+        <Route path="/agenda" element={<AgendaPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />

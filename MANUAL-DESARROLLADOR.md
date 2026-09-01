@@ -26,6 +26,7 @@ explícita.
 - [Fase 7 — Empresas y usuarios (onboarding)](#fase-7--empresas-y-usuarios-onboarding)
 - [Fase 8 — Dashboard real](#fase-8--dashboard-real)
 - [Fase 9 — Clientes](#fase-9--clientes)
+- [Fase 10 — Agenda](#fase-10--agenda)
 - [Incidente resuelto — colisión de nombres en Tailwind v4](#incidente-resuelto--colisión-de-nombres-en-tailwind-v4)
 - [Instalar Git y subir a GitHub](#instalar-git-y-subir-a-github)
 - [Próximos pasos](#próximos-pasos)
@@ -126,6 +127,58 @@ un modal reutilizable (`ui/Modal`). La etiqueta de la entidad
 `clients_delete_admin_only`). Se empezó a usar `logAction()` desde ya en
 crear/editar/eliminar en vez de esperar a la Fase 15 dedicada a auditoría
 — más sentido registrar la acción donde ocurre.
+
+## Fase 10 — Agenda
+
+### Qué se hizo
+
+Vistas Día / Semana / Mes con navegación (anterior/siguiente/hoy), crear y
+editar citas (cliente, servicio, profesional, fecha, hora, observaciones,
+estado), y eliminar (solo ADMIN, igual que Clientes). No hay mockup de
+referencia para el calendario — los 17 diseños originales no incluían esa
+pantalla — así que se diseñó manteniendo el mismo sistema visual.
+
+### Archivos
+
+| Archivo | Propósito |
+|---|---|
+| `src/lib/utils.ts` | +7 funciones de fechas: `startOfDay`, `addDays`, `startOfWeek`, `isSameDay`, `formatDayLabel`, `formatWeekdayShort`, `formatMonthLabel`, `getMonthGrid` |
+| `src/types/appointment.ts` | +`AppointmentInput`, `STATUS_LABEL`/`STATUS_TONE`/`STATUS_OPTIONS` compartidos (antes duplicados en Dashboard) |
+| `src/services/appointments.ts` | +`listAppointmentsForRange` (`getTodayAppointments` ahora la reutiliza en vez de duplicar la consulta), `createAppointment`, `updateAppointment`, `updateAppointmentStatus`, `deleteAppointment` |
+| `src/services/services.ts` | **Nuevo.** `listServices()` — lectura mínima para el selector de servicio al crear una cita. El CRUD completo de Servicios es la Fase 11 |
+| `src/services/companies.ts` | +`getCompanyMembers()` — lista de usuarios de la empresa, para el selector de "Profesional" |
+| `src/components/ui/Select.tsx` | **Nuevo componente reutilizable** (label + `<select>` con el mismo estilo que `Input`) |
+| `src/pages/agenda/AgendaPage.tsx` | Orquesta todo: estado de vista/fecha, carga de citas + listas para los selects, navegación |
+| `src/pages/agenda/DayView.tsx` | Lista de citas del día (reutiliza `DataTable`) |
+| `src/pages/agenda/WeekView.tsx` | 7 columnas, una por día, con las citas de esa semana |
+| `src/pages/agenda/MonthView.tsx` | Grid de semanas completas con contador de citas por día; clic en un día salta a la vista Día |
+| `src/pages/agenda/AppointmentFormModal.tsx` | Formulario de crear/editar, calcula `ends_at` automáticamente si el servicio elegido tiene duración |
+| `src/App.tsx` | Ruta `/agenda` |
+
+### Cómo probarlo
+
+**Esta vez no pude tomar la captura yo mismo** (a diferencia de Login/
+Registro): la Agenda es una ruta protegida que exige tu sesión real, y no
+tengo tu contraseña para automatizar el login. El build compila limpio
+(validación de tipos de TypeScript en los 104 módulos), pero la prueba
+visual la tienes que hacer tú:
+
+1. `npm run dev`, entra a tu cuenta, ve a "Agenda" en el menú.
+2. Crea una cita de prueba (necesitas al menos un cliente ya creado en la
+   Fase 9 — si no tienes ninguno, créalo primero en "Clientes").
+3. Cambia entre Día / Semana / Mes — la cita debería aparecer en las tres
+   vistas.
+4. Edítala (cambia el estado a "Confirmada", por ejemplo) y bórrala.
+5. Vuelve al Dashboard: si la cita queda para hoy, debería contar en
+   "Citas de hoy".
+
+### Errores posibles
+
+| Error | Causa | Solución |
+|---|---|---|
+| El selector de "Servicio" o "Profesional" aparece vacío | Aún no creaste ningún servicio, o eres el único usuario de la empresa | Es correcto — "Sin servicio"/"Sin asignar" son válidos, no bloquean crear la cita |
+| No aparece la cita en la vista Mes | Revisa que la fecha elegida esté realmente en el mes que estás viendo | — |
+| "No se pudo eliminar (revisa tus permisos)" | Tu rol es `USUARIO`, no `ADMIN` | Comportamiento esperado por RLS, igual que en Clientes |
 
 ---
 
@@ -239,6 +292,7 @@ en la computadora anterior.
 
 ## Próximos pasos
 
-**Fase 10 — Agenda**: vista de calendario (día/semana/mes), crear cita
-(cliente, servicio, fecha, hora, profesional, observaciones), cambiar
-estado. Aún no iniciada.
+**Fase 11 — Servicios**: CRUD completo (nombre, descripción, duración,
+precio, activar/desactivar) — ya existe una lectura mínima
+(`listServices`) usada por la Agenda; falta crear/editar/eliminar y su
+propia pantalla. Aún no iniciada.

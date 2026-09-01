@@ -5,7 +5,11 @@ import { useBusinessType } from "../../hooks/useBusinessType";
 import { getDashboardStats, type DashboardStats } from "../../services/dashboard";
 import { getTodayAppointments } from "../../services/appointments";
 import { getRecentActivity } from "../../services/auditLogs";
-import type { AppointmentWithDetails, AppointmentStatus } from "../../types/appointment";
+import {
+  STATUS_LABEL,
+  STATUS_TONE,
+  type AppointmentWithDetails,
+} from "../../types/appointment";
 import type { AuditLog } from "../../types/auditLog";
 import { StatCard } from "../../components/StatCard";
 import { DataTable } from "../../components/DataTable";
@@ -17,22 +21,6 @@ import {
   formatTime,
   formatDateLong,
 } from "../../lib/utils";
-
-const STATUS_TONE: Record<AppointmentStatus, "neutral" | "success" | "error" | "info"> = {
-  pendiente: "info",
-  confirmada: "success",
-  atendida: "neutral",
-  cancelada: "error",
-  no_asistio: "error",
-};
-
-const STATUS_LABEL: Record<AppointmentStatus, string> = {
-  pendiente: "Pendiente",
-  confirmada: "Confirmada",
-  atendida: "Atendida",
-  cancelada: "Cancelada",
-  no_asistio: "No asistió",
-};
 
 export function DashboardPage() {
   const { user } = useAuth();

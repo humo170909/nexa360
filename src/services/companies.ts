@@ -40,3 +40,22 @@ export async function getMyCompanies(): Promise<CompanyMembership[]> {
       role: row.role as CompanyRole,
     }));
 }
+
+export interface CompanyMember {
+  id: string;
+  full_name: string | null;
+}
+
+// Usuarios de la empresa activa, para elegir "Profesional" al crear una
+// cita (Agenda, Fase 10).
+export async function getCompanyMembers(companyId: string): Promise<CompanyMember[]> {
+  const { data, error } = await supabase
+    .from("company_users")
+    .select("profiles(id, full_name)")
+    .eq("company_id", companyId);
+
+  if (error || !data) return [];
+  return data
+    .map((row) => row.profiles as unknown as CompanyMember)
+    .filter(Boolean);
+}
