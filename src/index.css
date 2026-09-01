@@ -1,0 +1,130 @@
+@import "tailwindcss";
+
+/*
+  Design tokens extracted from the 17 original NEXA360 mockups (Fase 1).
+  Every mockup repeated this same palette/scale inline — it now lives here,
+  once, and every component gets it automatically via Tailwind utilities
+  (e.g. bg-surface-container-lowest, text-on-surface-variant, p-lg, gap-sm).
+*/
+@theme {
+  /* Color tokens (Material Design 3 style, shared by all 17 mockups) */
+  --color-primary: #000000;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #131b2e;
+  --color-on-primary-container: #7c839b;
+  --color-primary-fixed: #dae2fd;
+  --color-primary-fixed-dim: #bec6e0;
+  --color-on-primary-fixed: #131b2e;
+  --color-on-primary-fixed-variant: #3f465c;
+
+  --color-secondary: #0058be;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #2170e4;
+  --color-on-secondary-container: #fefcff;
+  --color-secondary-fixed: #d8e2ff;
+  --color-secondary-fixed-dim: #adc6ff;
+  --color-on-secondary-fixed: #001a42;
+  --color-on-secondary-fixed-variant: #004395;
+
+  --color-tertiary: #000000;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #0b1c30;
+  --color-on-tertiary-container: #75859d;
+  --color-tertiary-fixed: #d3e4fe;
+  --color-tertiary-fixed-dim: #b7c8e1;
+  --color-on-tertiary-fixed: #0b1c30;
+  --color-on-tertiary-fixed-variant: #38485d;
+
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  --color-background: #f7f9fb;
+  --color-on-background: #191c1e;
+  --color-surface: #f7f9fb;
+  --color-on-surface: #191c1e;
+  --color-on-surface-variant: #45464d;
+  --color-surface-bright: #f7f9fb;
+  --color-surface-dim: #d8dadc;
+  --color-surface-tint: #565e74;
+
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f2f4f6;
+  --color-surface-container: #eceef0;
+  --color-surface-container-high: #e6e8ea;
+  --color-surface-container-highest: #e0e3e5;
+  --color-surface-variant: #e0e3e5;
+
+  --color-outline: #76777d;
+  --color-outline-variant: #c6c6cd;
+
+  --color-inverse-surface: #2d3133;
+  --color-inverse-on-surface: #eff1f3;
+  --color-inverse-primary: #bec6e0;
+
+  /* Solo 2 tokens de tamaño propios: "sidebar-width" y "container-max" no
+     colisionan con ningún nombre reservado de Tailwind. El resto de la
+     escala de espaciado (xs/sm/md/lg/xl/2xl/3xl de los mockups originales)
+     usa directamente la escala numérica nativa de Tailwind (p-1, p-2, p-4,
+     p-6, p-8, p-12, p-16), que ya coincide en píxeles (4/8/16/24/32/48/64).
+     Nunca declares aquí un --spacing-<nombre> que coincida con xs, sm, md,
+     lg, xl, 2xl o 3xl: Tailwind v4 usa esa misma escala con nombre para
+     resolver utilidades de ancho/alto (max-w, w, h), y un valor propio la sobrescribe silenciosamente
+     (así se rompió el layout de Login/Registro la primera vez). */
+  --spacing-sidebar-width: 280px;
+  --spacing-container-max: 1440px;
+
+  /* Typographic scale — one utility carries size + line-height + letter-spacing + weight.
+     Note: the original mockups also had 9 separate "font-*" family tokens that all
+     resolved to Inter — pure duplication, so we dropped them and set Inter globally below. */
+  --text-display-lg: 48px;
+  --text-display-lg--line-height: 1.1;
+  --text-display-lg--letter-spacing: -0.02em;
+  --text-display-lg--font-weight: 700;
+
+  --text-headline-lg: 32px;
+  --text-headline-lg--line-height: 1.2;
+  --text-headline-lg--letter-spacing: -0.02em;
+  --text-headline-lg--font-weight: 600;
+
+  --text-headline-md: 24px;
+  --text-headline-md--line-height: 1.3;
+  --text-headline-md--letter-spacing: -0.01em;
+  --text-headline-md--font-weight: 600;
+
+  --text-headline-sm: 20px;
+  --text-headline-sm--line-height: 1.4;
+  --text-headline-sm--font-weight: 600;
+
+  --text-body-lg: 18px;
+  --text-body-lg--line-height: 1.6;
+  --text-body-lg--font-weight: 400;
+
+  --text-body-md: 16px;
+  --text-body-md--line-height: 1.6;
+  --text-body-md--font-weight: 400;
+
+  --text-body-sm: 14px;
+  --text-body-sm--line-height: 1.5;
+  --text-body-sm--font-weight: 400;
+
+  --text-label-md: 14px;
+  --text-label-md--line-height: 1.2;
+  --text-label-md--font-weight: 500;
+
+  --text-label-sm: 12px;
+  --text-label-sm--line-height: 1.2;
+  --text-label-sm--letter-spacing: 0.05em;
+  --text-label-sm--font-weight: 600;
+}
+
+body {
+  font-family: "Inter", system-ui, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-on-background);
+}
+
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}
