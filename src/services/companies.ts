@@ -15,6 +15,17 @@ export async function createCompany(
     .select()
     .single();
 
+  if (error) {
+    // Log completo (código, mensaje, detalle, pista) para poder depurar
+    // sin tener que ir a buscar el cuerpo de la respuesta en Network.
+    console.error("[createCompany error]", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+  }
+
   return { data: data as Company | null, error: error?.message ?? null };
 }
 

@@ -28,6 +28,7 @@ explícita.
 - [Fase 9 — Clientes](#fase-9--clientes)
 - [Fase 10 — Agenda](#fase-10--agenda)
 - [Incidente resuelto — colisión de nombres en Tailwind v4](#incidente-resuelto--colisión-de-nombres-en-tailwind-v4)
+- [Incidente resuelto — 403 al crear una empresa (RLS vs. trigger)](#incidente-resuelto--403-al-crear-una-empresa-rls-vs-trigger)
 - [Instalar Git y subir a GitHub](#instalar-git-y-subir-a-github)
 - [Próximos pasos](#próximos-pasos)
 
@@ -226,6 +227,83 @@ Nunca declares en `@theme` un `--spacing-<nombre>` que coincida con un
 nombre reservado de Tailwind (`xs, sm, md, lg, xl, 2xl, 3xl` y superiores)
 salvo que sea exactamente esa la intención. Nombres inventados como
 `sidebar-width` o `container-max` son seguros.
+
+---
+
+## Incidente resuelto — 403 al crear una empresa (RLS vs. trigger)
+
+### Qué pasó
+
+Al intentar crear una empresa en el onboarding, el `INSERT` a `companies`
+fallaba con `403 Forbidden` / código Postgres `42501` ("new row violates
+row-level security policy for table companies") — **incluso con una sesión
+real, válida y correctamente autenticada**.
+
+### Lo que se descartó primero (con evidencia, no adivinando)
+
+1. ¿Faltaban las tablas? No — las 8 existían, verificado directo contra la API.
+2. ¿Faltaba la política de INSERT? No — `pg_policies` mostró
+   `companies_insert_authenticated` con `with_check = (auth.uid() IS NOT NULL)`,
+   exactamente como debía ser.
+3. ¿Faltaba el permiso GRANT base? No — `information_schema.role_table_grants`
+   confirmó que `authenticated` tenía `INSERT` correctamente otorgado.
+4. ¿Era un problema de sesión/token? No — el mismo JWT del usuario leía
+   correctamente su propio perfil y su lista (vacía) de empresas.
+
+### Causa raíz real
+
+`createCompany()` hace `INSERT ... RETURNING *` (vía `.select().single()`
+de Supabase). Cuando RLS está activo, el `RETURNING` de un INSERT también
+debe pasar la política de **SELECT** de esa tabla, no solo la de INSERT. Y
+la política de SELECT original era:
+
+```sql
+using (is_company_member(id) or is_superadmin())
+```
+
+`is_company_member()` depende de que exista una fila en `company_users` —
+pero esa fila la crea un **trigger `AFTER INSERT`** (`handle_new_company`),
+que corre después de insertarse la empresa. Hay una carrera entre cuándo
+Postgres evalúa la visibilidad del `RETURNING` y cuándo el trigger termina
+de insertar esa fila relacionada — en ciertos casos, el `RETURNING` se
+evalúa sin ver todavía el efecto del trigger, y el INSERT completo se
+revierte con ese mismo error de RLS (aunque el problema real es de
+lectura, no de escritura).
+
+### La corrección
+
+La política de SELECT ahora también permite ver la empresa si eres su
+`owner_id` directamente — un chequeo sobre la misma fila, sin depender de
+otra tabla ni de que un trigger ya haya corrido:
+
+```sql
+using (
+  is_company_member(id)
+  or is_superadmin()
+  or owner_id = auth.uid()
+)
+```
+
+Ya aplicado en `database/policies.sql`.
+
+### Cómo se diagnosticó
+
+Con acceso real a la API de Supabase (curl + el token real de la sesión,
+que expira en ~1 hora) se reprodujo la petición exacta fuera del navegador,
+se consultó `pg_policies` y `information_schema.role_table_grants`
+directamente, y se simuló el INSERT en SQL puro dentro de una transacción
+con `rollback` (sin tocar datos reales) para confirmar el error sin
+depender de las herramientas de desarrollador del navegador.
+
+### Lección para el futuro
+
+Si una política de **INSERT** parece correcta pero el error persiste con
+una sesión válida, revisa también la política de **SELECT** de esa misma
+tabla — cualquier INSERT que pida datos de vuelta (`RETURNING`/`.select()`)
+depende de ambas. Y si la visibilidad de una fila depende de datos que un
+trigger crea en OTRA tabla, agrega también un chequeo directo sobre columnas
+de la propia fila (como `owner_id`) para no depender del orden de ejecución
+del trigger.
 
 ---
 

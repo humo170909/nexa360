@@ -27,6 +27,8 @@ export function SelectBusinessTypePage() {
     const { error } = await createCompany(companyName.trim(), selected, user.id);
     setLoading(false);
     if (error) {
+      // El detalle técnico ya queda en la consola (ver createCompany en
+      // services/companies.ts) — aquí solo mostramos un mensaje amigable.
       setError("No se pudo crear la empresa. Intenta de nuevo.");
       return;
     }

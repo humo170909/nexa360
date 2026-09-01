@@ -4,6 +4,11 @@
 -- Ejecutar DESPUÉS de schema.sql (estas reglas dependen de que las
 -- tablas ya existan). Mismo lugar: Supabase → SQL Editor → New query.
 --
+-- Este archivo es SEGURO DE RE-EJECUTAR completo cuantas veces quieras
+-- (cada "create policy" va precedido de "drop policy if exists") — útil
+-- si sospechas que una ejecución anterior quedó incompleta a mitad de
+-- camino, como pasó la primera vez con "companies_insert_authenticated".
+--
 -- Idea general: RLS hace que Postgres mismo rechace cualquier fila
 -- que no le corresponda al usuario que hace la consulta — aunque
 -- alguien manipule una petición desde el navegador, la base de datos
@@ -61,18 +66,22 @@ $$;
 -- ------------------------------------------------------------
 alter table profiles enable row level security;
 
+drop policy if exists "profiles_select_own_or_superadmin" on profiles;
 create policy "profiles_select_own_or_superadmin"
   on profiles for select
   using (id = auth.uid() or is_superadmin());
 
+drop policy if exists "profiles_insert_own" on profiles;
 create policy "profiles_insert_own"
   on profiles for insert
   with check (id = auth.uid());
 
+drop policy if exists "profiles_update_own_or_superadmin" on profiles;
 create policy "profiles_update_own_or_superadmin"
   on profiles for update
   using (id = auth.uid() or is_superadmin());
 
+drop policy if exists "profiles_delete_superadmin_only" on profiles;
 create policy "profiles_delete_superadmin_only"
   on profiles for delete
   using (is_superadmin());
@@ -82,18 +91,31 @@ create policy "profiles_delete_superadmin_only"
 -- ------------------------------------------------------------
 alter table companies enable row level security;
 
+-- El "or owner_id = auth.uid()" es necesario: el trigger que crea la fila
+-- en company_users (más abajo) corre en un AFTER INSERT, y hay casos donde
+-- Postgres evalúa la visibilidad del RETURNING del INSERT antes de que esa
+-- fila quede visible para is_company_member(). Comprobar owner_id
+-- directamente sobre la misma fila evita depender de esa carrera.
+drop policy if exists "companies_select_members_or_superadmin" on companies;
 create policy "companies_select_members_or_superadmin"
   on companies for select
-  using (is_company_member(id) or is_superadmin());
+  using (
+    is_company_member(id)
+    or is_superadmin()
+    or owner_id = auth.uid()
+  );
 
+drop policy if exists "companies_insert_authenticated" on companies;
 create policy "companies_insert_authenticated"
   on companies for insert
   with check (auth.uid() is not null);
 
+drop policy if exists "companies_update_admin_or_superadmin" on companies;
 create policy "companies_update_admin_or_superadmin"
   on companies for update
   using (is_company_admin(id) or is_superadmin());
 
+drop policy if exists "companies_delete_superadmin_only" on companies;
 create policy "companies_delete_superadmin_only"
   on companies for delete
   using (is_superadmin());
@@ -104,18 +126,22 @@ create policy "companies_delete_superadmin_only"
 -- ------------------------------------------------------------
 alter table company_users enable row level security;
 
+drop policy if exists "company_users_select_members_or_superadmin" on company_users;
 create policy "company_users_select_members_or_superadmin"
   on company_users for select
   using (is_company_member(company_id) or is_superadmin());
 
+drop policy if exists "company_users_insert_admin_or_superadmin" on company_users;
 create policy "company_users_insert_admin_or_superadmin"
   on company_users for insert
   with check (is_company_admin(company_id) or is_superadmin());
 
+drop policy if exists "company_users_update_admin_or_superadmin" on company_users;
 create policy "company_users_update_admin_or_superadmin"
   on company_users for update
   using (is_company_admin(company_id) or is_superadmin());
 
+drop policy if exists "company_users_delete_admin_or_superadmin" on company_users;
 create policy "company_users_delete_admin_or_superadmin"
   on company_users for delete
   using (is_company_admin(company_id) or is_superadmin());
@@ -130,34 +156,46 @@ create policy "company_users_delete_admin_or_superadmin"
 -- ------------------------------------------------------------
 alter table clients enable row level security;
 
+drop policy if exists "clients_select_members" on clients;
 create policy "clients_select_members" on clients for select
   using (is_company_member(company_id));
+drop policy if exists "clients_insert_members" on clients;
 create policy "clients_insert_members" on clients for insert
   with check (is_company_member(company_id));
+drop policy if exists "clients_update_members" on clients;
 create policy "clients_update_members" on clients for update
   using (is_company_member(company_id));
+drop policy if exists "clients_delete_admin_only" on clients;
 create policy "clients_delete_admin_only" on clients for delete
   using (is_company_admin(company_id));
 
 alter table services enable row level security;
 
+drop policy if exists "services_select_members" on services;
 create policy "services_select_members" on services for select
   using (is_company_member(company_id));
+drop policy if exists "services_insert_members" on services;
 create policy "services_insert_members" on services for insert
   with check (is_company_member(company_id));
+drop policy if exists "services_update_members" on services;
 create policy "services_update_members" on services for update
   using (is_company_member(company_id));
+drop policy if exists "services_delete_admin_only" on services;
 create policy "services_delete_admin_only" on services for delete
   using (is_company_admin(company_id));
 
 alter table appointments enable row level security;
 
+drop policy if exists "appointments_select_members" on appointments;
 create policy "appointments_select_members" on appointments for select
   using (is_company_member(company_id));
+drop policy if exists "appointments_insert_members" on appointments;
 create policy "appointments_insert_members" on appointments for insert
   with check (is_company_member(company_id));
+drop policy if exists "appointments_update_members" on appointments;
 create policy "appointments_update_members" on appointments for update
   using (is_company_member(company_id));
+drop policy if exists "appointments_delete_admin_only" on appointments;
 create policy "appointments_delete_admin_only" on appointments for delete
   using (is_company_admin(company_id));
 
@@ -166,12 +204,16 @@ create policy "appointments_delete_admin_only" on appointments for delete
 -- de Supabase se salta RLS por completo — no necesita política propia.
 alter table reminders enable row level security;
 
+drop policy if exists "reminders_select_members" on reminders;
 create policy "reminders_select_members" on reminders for select
   using (is_company_member(company_id));
+drop policy if exists "reminders_insert_members" on reminders;
 create policy "reminders_insert_members" on reminders for insert
   with check (is_company_member(company_id));
+drop policy if exists "reminders_update_members" on reminders;
 create policy "reminders_update_members" on reminders for update
   using (is_company_member(company_id));
+drop policy if exists "reminders_delete_admin_only" on reminders;
 create policy "reminders_delete_admin_only" on reminders for delete
   using (is_company_admin(company_id));
 
@@ -185,10 +227,12 @@ create policy "reminders_delete_admin_only" on reminders for delete
 -- ------------------------------------------------------------
 alter table audit_logs enable row level security;
 
+drop policy if exists "audit_logs_select_admin_or_superadmin" on audit_logs;
 create policy "audit_logs_select_admin_or_superadmin"
   on audit_logs for select
   using (is_company_admin(company_id) or is_superadmin());
 
+drop policy if exists "audit_logs_insert_members_or_superadmin" on audit_logs;
 create policy "audit_logs_insert_members_or_superadmin"
   on audit_logs for insert
   with check (
@@ -196,6 +240,7 @@ create policy "audit_logs_insert_members_or_superadmin"
     or (company_id is null and is_superadmin())
   );
 
+drop policy if exists "audit_logs_delete_superadmin_only" on audit_logs;
 create policy "audit_logs_delete_superadmin_only"
   on audit_logs for delete
   using (is_superadmin());
