@@ -368,6 +368,75 @@ en la computadora anterior.
 
 ---
 
+## Fase 14 — Mascotas (Veterinaria)
+
+### Qué se hizo
+
+El primer módulo con una **tabla nueva de verdad** (no una vista sobre
+`clients`/`appointments` como Historia/Tratamientos/Controles). Cada
+empresa de tipo `veterinaria` gana un módulo "Mascotas" en el Sidebar
+con CRUD completo: nombre, especie, raza, fecha de nacimiento, notas, y
+a qué propietario (cliente) pertenece cada una. Es el primero de varios
+módulos "de entidad nueva" que van a seguir el mismo patrón (Vehículos
+para Taller, etc.).
+
+### Por qué una tabla nueva y no reutilizar datos
+
+Historia/Tratamientos/Controles pudieron reutilizar `appointments`
+porque ya representaban lo mismo con otro nombre ("una cita atendida" =
+"un tratamiento hecho"). Una mascota no es una variación de ningún dato
+que ya existiera — es una entidad propia con su propio ciclo de vida
+(nace, tiene dueño, puede tener varias citas a lo largo del tiempo), así
+que fabricar eso como una vista habría sido forzar el modelo. Cuando la
+entidad es genuinamente nueva, la tabla nueva es la opción correcta.
+
+### Archivos
+
+| Archivo | Propósito |
+|---|---|
+| `database/migration_pets.sql` | **Nuevo.** Migración standalone para proyectos ya desplegados — tabla `pets` + RLS. Segura de re-ejecutar (usa `drop policy if exists`) |
+| `database/schema.sql` | +tabla `pets` (sección 9) e índices, para que una instalación nueva desde cero ya la incluya |
+| `database/policies.sql` | +políticas RLS de `pets` (select/insert/update para miembros, delete solo ADMIN — mismo patrón que `clients`/`services`) |
+| `src/types/pet.ts` | **Nuevo.** `Pet`, `PetWithOwner` (con el nombre del dueño ya resuelto) |
+| `src/services/pets.ts` | **Nuevo.** `listPets` (join manual contra `clients` para mostrar el nombre del dueño), `listPetsForOwner`, `createPet`, `updatePet`, `deletePet` |
+| `src/pages/pets/PetsPage.tsx` | **Nuevo.** Lista + modal de crear/editar, con un selector de propietario poblado desde `listClients`. Mismo patrón que `ServicesPage.tsx` |
+| `src/App.tsx` | Ruta `/pets` |
+
+### Cómo probarlo
+
+**Antes que nada, corre la migración**: entra a tu proyecto de Supabase →
+SQL Editor → pega el contenido completo de `database/migration_pets.sql`
+→ Run. Sin este paso la tabla `pets` no existe todavía y el módulo
+mostrará error al cargar.
+
+1. `npm run dev`, entra con una empresa de tipo **Veterinaria** (si tu
+   empresa de prueba es de otro rubro, "Mascotas" no aparecerá en el
+   Sidebar — es intencional, el Sidebar es 100% dependiente de
+   `business_type`).
+2. Ve a "Mascotas". Si no tienes ningún cliente todavía, la pantalla te
+   avisa que registres uno primero en "Propietarios" antes de poder
+   crear una mascota.
+3. Crea una mascota, elige un propietario del selector.
+4. Haz clic en el nombre del propietario dentro de la tabla — debería
+   llevarte a `/clients/:id` (su ficha de cliente).
+5. Edítala y bórrala (el botón de eliminar solo aparece si tu rol es
+   ADMIN).
+
+### Qué deberías aprender
+
+- Cuándo una entidad nueva justifica una tabla nueva vs. cuándo conviene
+  reutilizar datos existentes (comparar con la decisión tomada en
+  Historia/Tratamientos).
+- El patrón de "join manual en el cliente": Supabase permite pedir datos
+  relacionados con `select("*, owner:clients(full_name)")`, que Postgres
+  resuelve como un join real en la base de datos — no son dos consultas
+  separadas hechas por el navegador.
+- Por qué mantener `schema.sql` (instalación nueva) y
+  `migration_pets.sql` (proyectos ya existentes) sincronizados, en vez
+  de solo modificar uno de los dos.
+
+---
+
 ## Próximos pasos
 
 **Fase 11 — Servicios**: CRUD completo (nombre, descripción, duración,

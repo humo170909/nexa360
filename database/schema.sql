@@ -185,6 +185,23 @@ create table audit_logs (
 );
 
 -- ------------------------------------------------------------
+-- 9. pets — mascotas (módulo específico de Veterinaria).
+--    Ver database/migration_pets.sql si tu proyecto ya existía antes
+--    de esta tabla — no hace falta correr este schema.sql de nuevo.
+-- ------------------------------------------------------------
+create table pets (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies (id) on delete cascade,
+  owner_id uuid not null references clients (id) on delete cascade,
+  name text not null,
+  species text,
+  breed text,
+  birth_date date,
+  notes text,
+  created_at timestamptz not null default now()
+);
+
+-- ------------------------------------------------------------
 -- Índices — filtrar por company_id es la operación más frecuente
 -- de toda la app; esto la mantiene rápida aunque crezcan los datos.
 -- ------------------------------------------------------------
@@ -197,3 +214,5 @@ create index idx_appointments_client on appointments (client_id);
 create index idx_reminders_company on reminders (company_id);
 create index idx_reminders_appointment on reminders (appointment_id);
 create index idx_audit_logs_company on audit_logs (company_id);
+create index idx_pets_company on pets (company_id);
+create index idx_pets_owner on pets (owner_id);

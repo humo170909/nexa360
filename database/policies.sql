@@ -244,3 +244,26 @@ drop policy if exists "audit_logs_delete_superadmin_only" on audit_logs;
 create policy "audit_logs_delete_superadmin_only"
   on audit_logs for delete
   using (is_superadmin());
+
+-- ------------------------------------------------------------
+-- pets — mascotas (módulo específico de Veterinaria). Mismo patrón
+-- que clients/services: cualquier miembro ve/crea/edita, solo ADMIN
+-- elimina.
+-- ------------------------------------------------------------
+alter table pets enable row level security;
+
+drop policy if exists "pets_select_members" on pets;
+create policy "pets_select_members" on pets for select
+  using (is_company_member(company_id));
+
+drop policy if exists "pets_insert_members" on pets;
+create policy "pets_insert_members" on pets for insert
+  with check (is_company_member(company_id));
+
+drop policy if exists "pets_update_members" on pets;
+create policy "pets_update_members" on pets for update
+  using (is_company_member(company_id));
+
+drop policy if exists "pets_delete_admin_only" on pets;
+create policy "pets_delete_admin_only" on pets for delete
+  using (is_company_admin(company_id));
