@@ -10,6 +10,7 @@ import { SelectBusinessTypePage } from "./pages/onboarding/SelectBusinessTypePag
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
 import { ClientsPage } from "./pages/clients/ClientsPage";
 import { AgendaPage } from "./pages/agenda/AgendaPage";
+import { ComingSoonPage } from "./pages/ComingSoonPage";
 
 // Requiere sesión. Si el usuario aún no tiene empresa, lo manda al
 // onboarding antes de dejarlo entrar a cualquier pantalla interna.
@@ -88,8 +89,13 @@ function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/clients" element={<ClientsPage />} />
         <Route path="/agenda" element={<AgendaPage />} />
+        {/* Cualquier módulo que el Sidebar ya lista (Servicios, Recordatorios,
+            Tratamientos, Vehículos...) pero que todavía no tiene página real
+            construida cae aquí, en vez de expulsar al usuario a /login. */}
+        <Route path="*" element={<ComingSoonPage />} />
       </Route>
 
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
