@@ -258,6 +258,70 @@ create table sales (
 );
 
 -- ------------------------------------------------------------
+-- 13. teachers — docentes/profesores. Una sola tabla compartida por
+--     Colegio ("Docentes") y Academia ("Profesores"), igual que
+--     /history y /treatments ya se comparten entre otros rubros. Ver
+--     database/migration_teachers.sql si tu proyecto ya existía antes.
+-- ------------------------------------------------------------
+create table teachers (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies (id) on delete cascade,
+  full_name text not null,
+  specialty text,
+  phone text,
+  email text,
+  notes text,
+  created_at timestamptz not null default now()
+);
+
+-- ------------------------------------------------------------
+-- 14. grades — grados/secciones (módulo específico de Colegio).
+--     Ver database/migration_grades.sql si tu proyecto ya existía antes.
+-- ------------------------------------------------------------
+create table grades (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies (id) on delete cascade,
+  name text not null,
+  teacher_id uuid references teachers (id) on delete set null,
+  notes text,
+  created_at timestamptz not null default now()
+);
+
+-- ------------------------------------------------------------
+-- 15. guardians — padres/apoderados (módulo específico de Colegio).
+--     Cada fila es un apoderado ligado a UN estudiante (owner_id →
+--     clients); un estudiante con dos apoderados tiene dos filas.
+--     Ver database/migration_guardians.sql si tu proyecto ya existía
+--     antes.
+-- ------------------------------------------------------------
+create table guardians (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies (id) on delete cascade,
+  owner_id uuid not null references clients (id) on delete cascade,
+  full_name text not null,
+  relationship text check (relationship in ('madre', 'padre', 'tutor', 'otro')),
+  phone text,
+  email text,
+  notes text,
+  created_at timestamptz not null default now()
+);
+
+-- ------------------------------------------------------------
+-- 16. announcements — comunicados generales (módulo específico de
+--     Colegio). No tiene owner_id: no están ligados a un estudiante en
+--     particular. Ver database/migration_announcements.sql si tu
+--     proyecto ya existía antes.
+-- ------------------------------------------------------------
+create table announcements (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies (id) on delete cascade,
+  title text not null,
+  body text,
+  published_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
+-- ------------------------------------------------------------
 -- Índices — filtrar por company_id es la operación más frecuente
 -- de toda la app; esto la mantiene rápida aunque crezcan los datos.
 -- ------------------------------------------------------------
@@ -278,3 +342,9 @@ create index idx_eye_measurements_company on eye_measurements (company_id);
 create index idx_eye_measurements_owner on eye_measurements (owner_id);
 create index idx_sales_company on sales (company_id);
 create index idx_sales_owner on sales (owner_id);
+create index idx_teachers_company on teachers (company_id);
+create index idx_grades_company on grades (company_id);
+create index idx_grades_teacher on grades (teacher_id);
+create index idx_guardians_company on guardians (company_id);
+create index idx_guardians_owner on guardians (owner_id);
+create index idx_announcements_company on announcements (company_id);

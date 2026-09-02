@@ -334,3 +334,90 @@ create policy "sales_update_members" on sales for update
 drop policy if exists "sales_delete_admin_only" on sales;
 create policy "sales_delete_admin_only" on sales for delete
   using (is_company_admin(company_id));
+
+-- ------------------------------------------------------------
+-- teachers — docentes/profesores (Colegio y Academia comparten la
+-- misma tabla). Mismo patrón que pets/vehicles.
+-- ------------------------------------------------------------
+alter table teachers enable row level security;
+
+drop policy if exists "teachers_select_members" on teachers;
+create policy "teachers_select_members" on teachers for select
+  using (is_company_member(company_id));
+
+drop policy if exists "teachers_insert_members" on teachers;
+create policy "teachers_insert_members" on teachers for insert
+  with check (is_company_member(company_id));
+
+drop policy if exists "teachers_update_members" on teachers;
+create policy "teachers_update_members" on teachers for update
+  using (is_company_member(company_id));
+
+drop policy if exists "teachers_delete_admin_only" on teachers;
+create policy "teachers_delete_admin_only" on teachers for delete
+  using (is_company_admin(company_id));
+
+-- ------------------------------------------------------------
+-- grades — grados/secciones (módulo específico de Colegio).
+-- ------------------------------------------------------------
+alter table grades enable row level security;
+
+drop policy if exists "grades_select_members" on grades;
+create policy "grades_select_members" on grades for select
+  using (is_company_member(company_id));
+
+drop policy if exists "grades_insert_members" on grades;
+create policy "grades_insert_members" on grades for insert
+  with check (is_company_member(company_id));
+
+drop policy if exists "grades_update_members" on grades;
+create policy "grades_update_members" on grades for update
+  using (is_company_member(company_id));
+
+drop policy if exists "grades_delete_admin_only" on grades;
+create policy "grades_delete_admin_only" on grades for delete
+  using (is_company_admin(company_id));
+
+-- ------------------------------------------------------------
+-- guardians — padres/apoderados (módulo específico de Colegio). Mismo
+-- patrón que pets/vehicles: cada fila ligada a un estudiante.
+-- ------------------------------------------------------------
+alter table guardians enable row level security;
+
+drop policy if exists "guardians_select_members" on guardians;
+create policy "guardians_select_members" on guardians for select
+  using (is_company_member(company_id));
+
+drop policy if exists "guardians_insert_members" on guardians;
+create policy "guardians_insert_members" on guardians for insert
+  with check (is_company_member(company_id));
+
+drop policy if exists "guardians_update_members" on guardians;
+create policy "guardians_update_members" on guardians for update
+  using (is_company_member(company_id));
+
+drop policy if exists "guardians_delete_admin_only" on guardians;
+create policy "guardians_delete_admin_only" on guardians for delete
+  using (is_company_admin(company_id));
+
+-- ------------------------------------------------------------
+-- announcements — comunicados generales (módulo específico de
+-- Colegio). No tiene owner_id.
+-- ------------------------------------------------------------
+alter table announcements enable row level security;
+
+drop policy if exists "announcements_select_members" on announcements;
+create policy "announcements_select_members" on announcements for select
+  using (is_company_member(company_id));
+
+drop policy if exists "announcements_insert_members" on announcements;
+create policy "announcements_insert_members" on announcements for insert
+  with check (is_company_member(company_id));
+
+drop policy if exists "announcements_update_members" on announcements;
+create policy "announcements_update_members" on announcements for update
+  using (is_company_member(company_id));
+
+drop policy if exists "announcements_delete_admin_only" on announcements;
+create policy "announcements_delete_admin_only" on announcements for delete
+  using (is_company_admin(company_id));

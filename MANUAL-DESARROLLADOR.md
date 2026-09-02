@@ -540,6 +540,82 @@ Dashboard).
 
 ---
 
+## Fase 17 — Padres/Apoderados, Grados, Docentes y Comunicados (Colegio)
+
+### Qué se hizo
+
+Los 4 módulos específicos de Colegio, el vertical más grande construido
+hasta ahora. Tres formas de modelar datos distintas, todas ya vistas
+antes pero aplicadas juntas por primera vez:
+
+- **Docentes** (`teachers`): catálogo simple (como Servicios), sin
+  ligar a un estudiante. **Deliberadamente compartida con Academia** —
+  la tabla y el módulo son los mismos; solo cambia la etiqueta
+  ("Docentes" vs. "Profesores") según `business_type`, igual que ya
+  pasa con Historial/Tratamientos en otros rubros. Cuando se construya
+  Academia, este módulo ya está listo — no hace falta repetirlo.
+- **Grados** (`grades`): catálogo que además referencia a un docente a
+  cargo (`teacher_id`, opcional). Primera tabla que depende de OTRA
+  tabla nueva del proyecto (no solo de `clients`), así que el orden de
+  migración importa: `migration_teachers.sql` antes que
+  `migration_grades.sql`.
+- **Padres/Apoderados** (`guardians`): ligado a un estudiante
+  (`owner_id` → `clients`, mismo patrón que Mascotas/Vehículos), con un
+  campo de parentesco (madre/padre/tutor/otro). Si un estudiante tiene
+  dos apoderados, son dos filas — no hay una relación muchos-a-muchos
+  todavía (ver "Qué deberías aprender").
+- **Comunicados** (`announcements`): sin `owner_id` — un aviso no
+  pertenece a ningún estudiante en particular, aplica a todos. Es el
+  primer módulo que se muestra como tarjetas en vez de tabla (nadie lee
+  comunicados en filas de una hoja de cálculo).
+
+### Archivos
+
+| Archivo | Propósito |
+|---|---|
+| `database/migration_teachers.sql`, `migration_grades.sql`, `migration_guardians.sql`, `migration_announcements.sql` | **Nuevos.** Ejecutar EN ESE ORDEN — `grades` depende de `teachers` |
+| `database/schema.sql` | +4 tablas (secciones 13-16) e índices |
+| `database/policies.sql` | +políticas RLS de las 4 (mismo patrón que módulos anteriores) |
+| `src/types/teacher.ts`, `src/services/teachers.ts`, `src/pages/teachers/TeachersPage.tsx` | **Nuevos.** Catálogo simple, sin owner |
+| `src/types/grade.ts`, `src/services/grades.ts`, `src/pages/grades/GradesPage.tsx` | **Nuevos.** Catálogo + join contra `teachers` |
+| `src/types/guardian.ts`, `src/services/guardians.ts`, `src/pages/guardians/GuardiansPage.tsx` | **Nuevos.** Mismo patrón que `pets`/`vehicles`, con `RELATIONSHIP_LABEL` para el parentesco |
+| `src/types/announcement.ts`, `src/services/announcements.ts`, `src/pages/announcements/AnnouncementsPage.tsx` | **Nuevos.** Sin owner, vista de tarjetas con `EmptyState` |
+| `src/App.tsx` | Rutas `/teachers`, `/grades`, `/guardians`, `/announcements` |
+
+### Cómo probarlo
+
+1. **Corre las 4 migraciones en orden**: `migration_teachers.sql` →
+   `migration_grades.sql` → `migration_guardians.sql` →
+   `migration_announcements.sql`. Si corres `grades` antes que
+   `teachers`, va a fallar (la columna `teacher_id` no puede referenciar
+   una tabla que no existe todavía).
+2. `npm run dev`, entra con una empresa tipo **Colegio**.
+3. Crea un docente en "Docentes", luego un grado en "Grados" y asígnale
+   ese docente — confirma que aparece su nombre en la tabla.
+4. Crea un estudiante en "Estudiantes" (la entidad base), luego un
+   apoderado en "Padres/Apoderados" ligado a ese estudiante.
+5. Publica un comunicado — debería verse como tarjeta, no como fila de
+   tabla.
+
+### Qué deberías aprender
+
+- Un mismo módulo (Docentes) puede servir a dos verticales distintas
+  sin duplicar código: la clave "teachers" en `extraModules` es la
+  misma para Colegio y Academia, así que un solo componente,
+  `TeachersPage.tsx`, atiende a ambos — solo el texto cambia.
+- Cuándo una tabla nueva depende de otra tabla nueva (no de las 8
+  originales del proyecto): el orden de las migraciones deja de ser
+  arbitrario. `schema.sql` ya refleja ese orden porque Postgres exige
+  que la tabla referenciada exista antes de crear la referencia.
+- La limitación consciente de `guardians`: un padre con dos hijos en el
+  mismo colegio queda registrado dos veces (una fila por hijo), en vez
+  de una relación muchos-a-muchos con tabla intermedia. Es una
+  simplificación deliberada para no construir una relación compleja
+  antes de que el proyecto la necesite de verdad — se puede migrar más
+  adelante si se vuelve un problema real, no antes.
+
+---
+
 ## Próximos pasos
 
 **Fase 11 — Servicios**: CRUD completo (nombre, descripción, duración,
