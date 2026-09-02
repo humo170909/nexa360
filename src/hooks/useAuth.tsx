@@ -20,6 +20,7 @@ interface AuthContextValue {
   ) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
   signOut: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<{ error: string | null }>;
+  updatePassword: (newPassword: string) => Promise<{ error: string | null }>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -103,6 +104,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? friendlyAuthError(error) : null };
   }
 
+  // Requiere que ya haya una sesión activa (a diferencia de
+  // requestPasswordReset, que es para cuando NO puedes iniciar sesión).
+  // Se usa en Configuración → Seguridad.
+  async function updatePassword(newPassword: string) {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    return { error: error ? friendlyAuthError(error) : null };
+  }
+
   const value: AuthContextValue = {
     session,
     user: session?.user ?? null,
@@ -111,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signUp,
     signOut,
     requestPasswordReset,
+    updatePassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -70,3 +70,37 @@ export async function getCompanyMembers(companyId: string): Promise<CompanyMembe
     .map((row) => row.profiles as unknown as CompanyMember)
     .filter(Boolean);
 }
+
+export async function updateCompanyName(companyId: string, name: string) {
+  const { data, error } = await supabase
+    .from("companies")
+    .update({ name })
+    .eq("id", companyId)
+    .select()
+    .single();
+  return { data: data as Company | null, error: error?.message ?? null };
+}
+
+export interface CompanyMemberDetailed extends CompanyMember {
+  role: CompanyRole;
+}
+
+// Igual que getCompanyMembers, pero con el rol incluido — para la
+// pestaña "Usuarios" de Configuración.
+export async function listCompanyUsersDetailed(
+  companyId: string,
+): Promise<CompanyMemberDetailed[]> {
+  const { data, error } = await supabase
+    .from("company_users")
+    .select("role, profiles(id, full_name)")
+    .eq("company_id", companyId);
+
+  if (error || !data) return [];
+  return data
+    .map((row) => {
+      const profile = row.profiles as unknown as CompanyMember | null;
+      if (!profile) return null;
+      return { ...profile, role: row.role as CompanyRole };
+    })
+    .filter((m): m is CompanyMemberDetailed => m !== null);
+}
