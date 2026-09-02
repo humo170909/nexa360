@@ -12,6 +12,7 @@ import {
 import { logAction } from "../../services/auditLogs";
 import type { Service } from "../../types/service";
 import { DataTable } from "../../components/DataTable";
+import { PageHeader } from "../../components/PageHeader";
 import { Modal } from "../../components/ui/Modal";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
@@ -138,18 +139,11 @@ export function ServicesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h2 className="text-display-lg text-primary tracking-tight">Servicios</h2>
-          <p className="text-body-md text-on-surface-variant mt-2">
-            Administra el catálogo de servicios que ofreces.
-          </p>
-        </div>
-        <Button fullWidth={false} onClick={openCreate}>
-          <span className="material-symbols-outlined text-[18px]">add</span>
-          Nuevo
-        </Button>
-      </div>
+      <PageHeader
+        title="Servicios"
+        subtitle="Administra el catálogo de servicios que ofreces."
+        action={{ label: "Nuevo", icon: "add", onClick: openCreate }}
+      />
 
       <div className="relative max-w-md">
         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">

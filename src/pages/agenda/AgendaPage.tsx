@@ -13,7 +13,7 @@ import { logAction } from "../../services/auditLogs";
 import type { AppointmentWithDetails } from "../../types/appointment";
 import type { Client } from "../../types/client";
 import type { Service } from "../../types/service";
-import { Button } from "../../components/ui/Button";
+import { PageHeader } from "../../components/PageHeader";
 import { DayView } from "./DayView";
 import { WeekView } from "./WeekView";
 import { MonthView } from "./MonthView";
@@ -148,18 +148,11 @@ export function AgendaPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h2 className="text-display-lg text-primary tracking-tight">Agenda</h2>
-          <p className="text-body-md text-on-surface-variant mt-2">
-            Gestiona tus citas y horarios.
-          </p>
-        </div>
-        <Button fullWidth={false} onClick={openCreate}>
-          <span className="material-symbols-outlined text-[18px]">add</span>
-          Nueva cita
-        </Button>
-      </div>
+      <PageHeader
+        title="Agenda"
+        subtitle="Gestiona tus citas y horarios."
+        action={{ label: "Nueva cita", icon: "add", onClick: openCreate }}
+      />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-2">
