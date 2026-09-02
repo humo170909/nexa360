@@ -90,7 +90,7 @@ export function AgendaPage() {
   useEffect(() => {
     if (!company) return;
     listClients(company.id).then(setClients);
-    listServices(company.id).then(setServices);
+    listServices(company.id, { activeOnly: true }).then(setServices);
     getCompanyMembers(company.id).then(setMembers);
   }, [company]);
 
