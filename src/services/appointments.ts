@@ -61,3 +61,37 @@ export async function deleteAppointment(id: string) {
   const { error } = await supabase.from("appointments").delete().eq("id", id);
   return { error: error?.message ?? null };
 }
+
+// Todas las citas de un cliente (cualquier fecha), de más reciente a más
+// antigua — la base del timeline de "Historial" en el perfil del cliente.
+export async function listAppointmentsForClient(
+  clientId: string,
+): Promise<AppointmentWithDetails[]> {
+  const { data, error } = await supabase
+    .from("appointments")
+    .select("*, client:clients(full_name), service:services(name)")
+    .eq("client_id", clientId)
+    .order("starts_at", { ascending: false });
+
+  if (error || !data) return [];
+  return data as unknown as AppointmentWithDetails[];
+}
+
+// Para "Tratamientos": citas ya atendidas, de toda la empresa — un
+// registro de lo que ya se hizo (a diferencia de Agenda, que es la
+// vista de programación hacia adelante).
+export async function listCompletedAppointments(
+  companyId: string,
+  limit = 100,
+): Promise<AppointmentWithDetails[]> {
+  const { data, error } = await supabase
+    .from("appointments")
+    .select("*, client:clients(full_name), service:services(name)")
+    .eq("company_id", companyId)
+    .eq("status", "atendida")
+    .order("starts_at", { ascending: false })
+    .limit(limit);
+
+  if (error || !data) return [];
+  return data as unknown as AppointmentWithDetails[];
+}

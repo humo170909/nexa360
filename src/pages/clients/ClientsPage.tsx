@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useCompany } from "../../hooks/useCompany";
 import { useBusinessType } from "../../hooks/useBusinessType";
@@ -27,6 +28,7 @@ const emptyForm: ClientInput = {
 };
 
 export function ClientsPage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { company, role } = useCompany();
   const businessType = useBusinessType();
@@ -158,7 +160,17 @@ export function ClientsPage() {
         ) : (
           <DataTable
             columns={[
-              { header: "Nombre", render: (c: Client) => c.full_name },
+              {
+                header: "Nombre",
+                render: (c: Client) => (
+                  <button
+                    onClick={() => navigate(`/clients/${c.id}`)}
+                    className="text-primary font-medium hover:underline"
+                  >
+                    {c.full_name}
+                  </button>
+                ),
+              },
               { header: "Teléfono", render: (c: Client) => c.phone || "—" },
               { header: "Correo", render: (c: Client) => c.email || "—" },
               {

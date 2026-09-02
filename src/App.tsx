@@ -9,12 +9,16 @@ import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
 import { SelectBusinessTypePage } from "./pages/onboarding/SelectBusinessTypePage";
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
 import { ClientsPage } from "./pages/clients/ClientsPage";
+import { ClientProfilePage } from "./pages/clients/ClientProfilePage";
 import { AgendaPage } from "./pages/agenda/AgendaPage";
 import { ComingSoonPage } from "./pages/ComingSoonPage";
 import { ServicesPage } from "./pages/services/ServicesPage";
 import { RemindersPage } from "./pages/reminders/RemindersPage";
 import { ReportsPage } from "./pages/reports/ReportsPage";
 import { SettingsPage } from "./pages/settings/SettingsPage";
+import { HistoryPage } from "./pages/history/HistoryPage";
+import { TreatmentsPage } from "./pages/treatments/TreatmentsPage";
+import { CheckupsPage } from "./pages/checkups/CheckupsPage";
 
 // Requiere sesión. Si el usuario aún no tiene empresa, lo manda al
 // onboarding antes de dejarlo entrar a cualquier pantalla interna.
@@ -92,11 +96,15 @@ function App() {
       >
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/clients" element={<ClientsPage />} />
+        <Route path="/clients/:id" element={<ClientProfilePage />} />
         <Route path="/agenda" element={<AgendaPage />} />
         <Route path="/services" element={<ServicesPage />} />
         <Route path="/reminders" element={<RemindersPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/history" element={<HistoryPage />} />
+        <Route path="/treatments" element={<TreatmentsPage />} />
+        <Route path="/checkups" element={<CheckupsPage />} />
         {/* Cualquier módulo que el Sidebar ya lista (Servicios, Recordatorios,
             Tratamientos, Vehículos...) pero que todavía no tiene página real
             construida cae aquí, en vez de expulsar al usuario a /login. */}
