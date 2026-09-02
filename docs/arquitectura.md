@@ -75,6 +75,57 @@ cómo se llama la entidad principal. Componentes como `Sidebar` y
 `DashboardPage` leen esta configuración — no existen bifurcaciones de
 código por tipo de negocio dentro de los componentes.
 
+## Anatomía de un módulo
+
+Cada módulo del Sidebar (Clientes, Agenda, Mascotas, Cursos...) sigue
+siempre el mismo patrón de 3-4 archivos. Ejemplo real, el módulo Mascotas:
+
+```
+database/migration_pets.sql      → la tabla en Supabase (fuera del frontend)
+src/types/pet.ts                 → la "forma" del dato: qué campos tiene una mascota
+src/services/pets.ts             → funciones que hablan con Supabase (listar/crear/editar/borrar)
+src/pages/pets/PetsPage.tsx      → la pantalla completa: HTML + CSS + JS del módulo
+src/App.tsx (una línea)          → registra la ruta /pets
+```
+
+Para encontrar cualquier módulo nuevo, sigue siempre este mismo orden:
+1. ¿Qué datos maneja? → `src/types/<entidad>.ts`
+2. ¿Cómo se leen/guardan? → `src/services/<entidad>.ts`
+3. ¿Qué se ve en pantalla? → `src/pages/<modulo>/<Modulo>Page.tsx`
+4. ¿Cómo se llega ahí? → la línea correspondiente en `src/App.tsx`
+
+### Por qué HTML, CSS y JS viven en el mismo archivo (`.tsx`)
+
+Si vienes de HTML/CSS/JS separados, esto puede sorprender al principio.
+Dentro de un archivo `*Page.tsx` hay tres cosas mezcladas a propósito:
+
+| Lo que buscas | Dónde está dentro del `.tsx` |
+|---|---|
+| "HTML" | El bloque `return (...)` al final — es JSX, se lee casi igual que HTML (`<div>`, `<table>`, `<button>`) |
+| "CSS" | Las clases dentro de `className="..."` — son utilidades de Tailwind, no hay un `.css` aparte por módulo |
+| "JS" | Todo lo de arriba del `return`: `useState`, `useEffect`, funciones como `handleSubmit` |
+
+La razón de juntarlos: en un módulo real el JS necesita reaccionar
+constantemente a lo que pasa en el HTML (escribes en un buscador → la
+tabla se filtra sola). Con archivos separados, esa sincronización se hace
+a mano con `document.querySelector` y actualizando el DOM manualmente. En
+React, cuando cambia el estado (`setSearch(...)`), el HTML se vuelve a
+dibujar solo — es menos archivos por módulo, pero no es desorden: es que
+HTML y JS son la misma pieza de lógica en este modelo.
+
+### Tabla de equivalencias (para quien piensa en HTML/CSS/JS clásico)
+
+| Estructura clásica que conocías | Equivalente real en NEXA360 |
+|---|---|
+| `pages/<modulo>/<modulo>.html` | El `return (...)` dentro de `src/pages/<modulo>/<Modulo>Page.tsx` |
+| `pages/<modulo>/<modulo>.css` | Clases de Tailwind en el mismo `.tsx` (no hay `.css` por módulo) |
+| `pages/<modulo>/<modulo>.js` | El resto del mismo `.tsx` (estado, funciones) |
+| `css/global.css` | `src/index.css` (bloque `@theme` — colores, tipografía, espaciados) |
+| `js/navigation.js` | `src/components/layout/Sidebar.tsx` + `Navbar.tsx` — un componente reusado por los 25 módulos, no duplicado |
+| `js/config.js` | `src/config/businessTypes.ts` — un objeto por cada uno de los 18 rubros |
+| `js/auth.js` | `src/hooks/useAuth.ts` — sesión de Supabase, disponible con una línea en cualquier página |
+| `supabase/schema.sql` | `database/schema.sql` + `database/policies.sql` |
+
 ## Roles
 
 - **SUPERADMIN**: administra la plataforma NEXA360 completa (todas las empresas).
@@ -83,7 +134,13 @@ código por tipo de negocio dentro de los componentes.
 
 ## Estado actual
 
-Ver `MANUAL-DESARROLLADOR.md` — completadas las Fases 1 a 9 (análisis,
-estructura, mapeo de mockups, toolchain, modelo de datos + RLS,
-autenticación, onboarding multiempresa, Dashboard real, módulo de
-Clientes). Fase 10 (Agenda) es la siguiente.
+Ver `MANUAL-DESARROLLADOR.md` para el detalle fase por fase. Completadas
+las Fases 1 a 18: análisis y toolchain, modelo de datos + RLS,
+autenticación, onboarding multiempresa, Dashboard real, y los módulos
+universales (Clientes, Agenda, Servicios, Recordatorios, Reportes,
+Configuración) más los específicos por vertical — Tratamientos/Historia/
+Controles (odontología/veterinaria), Mascotas (veterinaria), Vehículos
+(taller), Medidas visuales/Ventas (óptica), Docentes/Grados/Padres-
+Apoderados/Comunicados (colegio), Cursos/Matrículas (academia, reutiliza
+Docentes de colegio). Pendiente: envío real de recordatorios por email
+(hoy solo se registran, no se envían) y deploy a Vercel.

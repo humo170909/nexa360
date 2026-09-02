@@ -687,7 +687,10 @@ real y diferenciado en su Sidebar, no solo el Dashboard genérico.
 
 ## Próximos pasos
 
-**Fase 11 — Servicios**: CRUD completo (nombre, descripción, duración,
-precio, activar/desactivar) — ya existe una lectura mínima
-(`listServices`) usada por la Agenda; falta crear/editar/eliminar y su
-propia pantalla. Aún no iniciada.
+**Fase 11 — Servicios**: completada (`ServicesPage.tsx` ya tiene el
+CRUD completo — crear, editar, activar/desactivar, eliminar — este
+apunte quedó desactualizado desde entonces).
+
+**Pendiente real**: envío real de recordatorios por email (hoy solo se
+registran en la tabla `reminders`, no se envían — WhatsApp/SMS siguen
+mostrando "Próximamente" a propósito) y deploy a Vercel.
