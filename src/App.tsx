@@ -21,6 +21,8 @@ import { TreatmentsPage } from "./pages/treatments/TreatmentsPage";
 import { CheckupsPage } from "./pages/checkups/CheckupsPage";
 import { PetsPage } from "./pages/pets/PetsPage";
 import { VehiclesPage } from "./pages/vehicles/VehiclesPage";
+import { MeasurementsPage } from "./pages/measurements/MeasurementsPage";
+import { SalesPage } from "./pages/sales/SalesPage";
 
 // Requiere sesión. Si el usuario aún no tiene empresa, lo manda al
 // onboarding antes de dejarlo entrar a cualquier pantalla interna.
@@ -109,6 +111,8 @@ function App() {
         <Route path="/checkups" element={<CheckupsPage />} />
         <Route path="/pets" element={<PetsPage />} />
         <Route path="/vehicles" element={<VehiclesPage />} />
+        <Route path="/measurements" element={<MeasurementsPage />} />
+        <Route path="/sales" element={<SalesPage />} />
         {/* Cualquier módulo que el Sidebar ya lista (Servicios, Recordatorios,
             Tratamientos, Vehículos...) pero que todavía no tiene página real
             construida cae aquí, en vez de expulsar al usuario a /login. */}

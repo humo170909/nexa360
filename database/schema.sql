@@ -219,6 +219,45 @@ create table vehicles (
 );
 
 -- ------------------------------------------------------------
+-- 11. eye_measurements — medidas visuales (módulo específico de
+--     Óptica). "od" = ojo derecho, "os" = ojo izquierdo (nomenclatura
+--     óptica estándar). Ver database/migration_eye_measurements.sql
+--     si tu proyecto ya existía antes de esta tabla.
+-- ------------------------------------------------------------
+create table eye_measurements (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies (id) on delete cascade,
+  owner_id uuid not null references clients (id) on delete cascade,
+  measured_at date not null default current_date,
+  od_sphere numeric(4, 2),
+  od_cylinder numeric(4, 2),
+  od_axis integer,
+  os_sphere numeric(4, 2),
+  os_cylinder numeric(4, 2),
+  os_axis integer,
+  pupillary_distance numeric(4, 1),
+  notes text,
+  created_at timestamptz not null default now()
+);
+
+-- ------------------------------------------------------------
+-- 12. sales — ventas (módulo específico de Óptica: lentes, armazones,
+--     accesorios). Ver database/migration_sales.sql si tu proyecto ya
+--     existía antes de esta tabla.
+-- ------------------------------------------------------------
+create table sales (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies (id) on delete cascade,
+  owner_id uuid not null references clients (id) on delete cascade,
+  item_name text not null,
+  quantity integer not null default 1 check (quantity > 0),
+  unit_price numeric(10, 2) not null default 0,
+  sold_at timestamptz not null default now(),
+  notes text,
+  created_at timestamptz not null default now()
+);
+
+-- ------------------------------------------------------------
 -- Índices — filtrar por company_id es la operación más frecuente
 -- de toda la app; esto la mantiene rápida aunque crezcan los datos.
 -- ------------------------------------------------------------
@@ -235,3 +274,7 @@ create index idx_pets_company on pets (company_id);
 create index idx_pets_owner on pets (owner_id);
 create index idx_vehicles_company on vehicles (company_id);
 create index idx_vehicles_owner on vehicles (owner_id);
+create index idx_eye_measurements_company on eye_measurements (company_id);
+create index idx_eye_measurements_owner on eye_measurements (owner_id);
+create index idx_sales_company on sales (company_id);
+create index idx_sales_owner on sales (owner_id);

@@ -290,3 +290,47 @@ create policy "vehicles_update_members" on vehicles for update
 drop policy if exists "vehicles_delete_admin_only" on vehicles;
 create policy "vehicles_delete_admin_only" on vehicles for delete
   using (is_company_admin(company_id));
+
+-- ------------------------------------------------------------
+-- eye_measurements — medidas visuales (módulo específico de Óptica).
+-- Mismo patrón que pets/vehicles.
+-- ------------------------------------------------------------
+alter table eye_measurements enable row level security;
+
+drop policy if exists "eye_measurements_select_members" on eye_measurements;
+create policy "eye_measurements_select_members" on eye_measurements for select
+  using (is_company_member(company_id));
+
+drop policy if exists "eye_measurements_insert_members" on eye_measurements;
+create policy "eye_measurements_insert_members" on eye_measurements for insert
+  with check (is_company_member(company_id));
+
+drop policy if exists "eye_measurements_update_members" on eye_measurements;
+create policy "eye_measurements_update_members" on eye_measurements for update
+  using (is_company_member(company_id));
+
+drop policy if exists "eye_measurements_delete_admin_only" on eye_measurements;
+create policy "eye_measurements_delete_admin_only" on eye_measurements for delete
+  using (is_company_admin(company_id));
+
+-- ------------------------------------------------------------
+-- sales — ventas (módulo específico de Óptica). Mismo patrón que
+-- pets/vehicles.
+-- ------------------------------------------------------------
+alter table sales enable row level security;
+
+drop policy if exists "sales_select_members" on sales;
+create policy "sales_select_members" on sales for select
+  using (is_company_member(company_id));
+
+drop policy if exists "sales_insert_members" on sales;
+create policy "sales_insert_members" on sales for insert
+  with check (is_company_member(company_id));
+
+drop policy if exists "sales_update_members" on sales;
+create policy "sales_update_members" on sales for update
+  using (is_company_member(company_id));
+
+drop policy if exists "sales_delete_admin_only" on sales;
+create policy "sales_delete_admin_only" on sales for delete
+  using (is_company_admin(company_id));

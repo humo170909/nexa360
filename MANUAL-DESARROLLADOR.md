@@ -483,6 +483,63 @@ abstracción prematura.
 
 ---
 
+## Fase 16 — Medidas visuales y Ventas (Óptica)
+
+### Qué se hizo
+
+Los dos módulos específicos que le faltaban a Óptica. "Medidas visuales"
+es distinto a Mascotas/Vehículos: en vez de una ficha única por entidad,
+es un **historial** — un cliente puede tener varias medidas a lo largo
+del tiempo (la vista más reciente arriba), como una receta óptica real:
+esfera, cilindro y eje por cada ojo (OD = ojo derecho, OS = ojo
+izquierdo, nomenclatura estándar del rubro) más distancia pupilar.
+"Ventas" registra artículos vendidos (lentes, armazones, accesorios)
+ligados a un cliente, con cantidad, precio unitario y total calculado, y
+agrega 3 StatCards con el acumulado (mismo componente que usa el
+Dashboard).
+
+### Archivos
+
+| Archivo | Propósito |
+|---|---|
+| `database/migration_eye_measurements.sql` | **Nuevo.** Tabla `eye_measurements` + RLS |
+| `database/migration_sales.sql` | **Nuevo.** Tabla `sales` + RLS |
+| `database/schema.sql` | +tablas `eye_measurements` (11) y `sales` (12) e índices |
+| `database/policies.sql` | +políticas RLS de ambas (mismo patrón que `pets`/`vehicles`) |
+| `src/types/eyeMeasurement.ts`, `src/services/eyeMeasurements.ts` | **Nuevos.** CRUD + `listEyeMeasurementsForOwner` para uso futuro en la ficha de cliente |
+| `src/types/sale.ts`, `src/services/sales.ts` | **Nuevos.** CRUD, con `quantity * unit_price` calculado en el frontend (no se guarda un "total" redundante en la tabla) |
+| `src/pages/measurements/MeasurementsPage.tsx` | **Nuevo.** Formulario con 2 bloques (OD/OS) de esfera/cilindro/eje + distancia pupilar |
+| `src/pages/sales/SalesPage.tsx` | **Nuevo.** Lista + StatCards de resumen (ventas registradas, total acumulado, ticket promedio) |
+| `src/App.tsx` | Rutas `/measurements` y `/sales` |
+
+### Cómo probarlo
+
+1. **Corre ambas migraciones** (`migration_eye_measurements.sql` y
+   `migration_sales.sql`) en el SQL Editor de Supabase.
+2. `npm run dev`, entra con una empresa tipo **Óptica**.
+3. En "Medidas visuales": crea una medida para un cliente, confirma que
+   el signo se muestra explícito (+1.25, -0.50) como en una receta real,
+   y que crear una segunda medida para el mismo cliente no reemplaza la
+   primera — ambas quedan en el historial, ordenadas por fecha.
+4. En "Ventas": registra una venta, confirma que el total (cantidad ×
+   precio) se calcula solo, y que las 3 StatCards de arriba se
+   actualizan.
+
+### Qué deberías aprender
+
+- La diferencia entre una entidad de "ficha única" (Mascotas, Vehículos
+  — una fila por mascota/auto) y una de "historial" (Medidas visuales —
+  varias filas por cliente a lo largo del tiempo, como las citas). El
+  modelo de datos es el mismo (`owner_id` + tabla propia), pero la
+  decisión de diseño (¿reemplazar o acumular?) depende del dominio, no
+  de la estructura SQL.
+- Por qué el total de una venta NO se guarda en la base de datos: es un
+  valor derivado (`quantity * unit_price`) que siempre se puede
+  recalcular; guardarlo aparte crearía la posibilidad de que quedara
+  desincronizado si se edita la cantidad o el precio después.
+
+---
+
 ## Próximos pasos
 
 **Fase 11 — Servicios**: CRUD completo (nombre, descripción, duración,
