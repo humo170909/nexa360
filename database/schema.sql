@@ -202,6 +202,23 @@ create table pets (
 );
 
 -- ------------------------------------------------------------
+-- 10. vehicles — vehículos (módulo específico de Taller).
+--     Ver database/migration_vehicles.sql si tu proyecto ya existía
+--     antes de esta tabla — no hace falta correr este schema.sql de nuevo.
+-- ------------------------------------------------------------
+create table vehicles (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies (id) on delete cascade,
+  owner_id uuid not null references clients (id) on delete cascade,
+  plate text not null,
+  brand text,
+  model text,
+  year integer,
+  notes text,
+  created_at timestamptz not null default now()
+);
+
+-- ------------------------------------------------------------
 -- Índices — filtrar por company_id es la operación más frecuente
 -- de toda la app; esto la mantiene rápida aunque crezcan los datos.
 -- ------------------------------------------------------------
@@ -216,3 +233,5 @@ create index idx_reminders_appointment on reminders (appointment_id);
 create index idx_audit_logs_company on audit_logs (company_id);
 create index idx_pets_company on pets (company_id);
 create index idx_pets_owner on pets (owner_id);
+create index idx_vehicles_company on vehicles (company_id);
+create index idx_vehicles_owner on vehicles (owner_id);

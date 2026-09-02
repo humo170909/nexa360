@@ -437,6 +437,52 @@ mostrará error al cargar.
 
 ---
 
+## Fase 15 — Vehículos (Taller)
+
+### Qué se hizo
+
+Segundo módulo de "entidad nueva", calcado del patrón de Mascotas: tabla
+`vehicles` propia (placa, marca, modelo, año, notas, propietario) con
+CRUD completo y su selector de propietario. Confirma que el patrón
+Mascotas es reutilizable tal cual para cualquier vertical con una
+entidad física propia — el próximo (Medidas visuales para Óptica, Ventas
+para Óptica, etc.) sigue el mismo molde.
+
+### Archivos
+
+| Archivo | Propósito |
+|---|---|
+| `database/migration_vehicles.sql` | **Nuevo.** Migración standalone — tabla `vehicles` + RLS |
+| `database/schema.sql` | +tabla `vehicles` (sección 10) e índices |
+| `database/policies.sql` | +políticas RLS de `vehicles` (mismo patrón que `pets`) |
+| `src/types/vehicle.ts` | **Nuevo.** `Vehicle`, `VehicleWithOwner` |
+| `src/services/vehicles.ts` | **Nuevo.** `listVehicles` (join contra `clients`), `listVehiclesForOwner`, `createVehicle`, `updateVehicle`, `deleteVehicle` |
+| `src/pages/vehicles/VehiclesPage.tsx` | **Nuevo.** Lista + modal, idéntico en estructura a `PetsPage.tsx` |
+| `src/App.tsx` | Ruta `/vehicles` |
+
+### Cómo probarlo
+
+1. **Corre `database/migration_vehicles.sql`** en el SQL Editor de
+   Supabase antes de probar — igual que con Mascotas, sin esto la tabla
+   no existe.
+2. `npm run dev`, entra con una empresa tipo **Taller mecánico**, ve a
+   "Vehículos" en el Sidebar.
+3. Si no tienes clientes, la pantalla te avisa que registres uno primero.
+4. Crea/edita/elimina un vehículo y confirma que el nombre del
+   propietario te lleva a su ficha de cliente.
+
+### Qué deberías aprender
+
+Cuando un segundo módulo resulta ser una copia casi exacta de la
+estructura del primero (mismos tipos de campo, mismo flujo de formulario,
+mismo join), es la señal de que el patrón ya está bien encontrado — no
+hace falta inventar una abstracción genérica "EntityWithOwnerPage" salvo
+que aparezca un tercer o cuarto caso que la justifique. Tres
+implementaciones parecidas siguen siendo más simples de mantener que una
+abstracción prematura.
+
+---
+
 ## Próximos pasos
 
 **Fase 11 — Servicios**: CRUD completo (nombre, descripción, duración,

@@ -267,3 +267,26 @@ create policy "pets_update_members" on pets for update
 drop policy if exists "pets_delete_admin_only" on pets;
 create policy "pets_delete_admin_only" on pets for delete
   using (is_company_admin(company_id));
+
+-- ------------------------------------------------------------
+-- vehicles — vehículos (módulo específico de Taller). Mismo patrón
+-- que pets/clients/services: cualquier miembro ve/crea/edita, solo
+-- ADMIN elimina.
+-- ------------------------------------------------------------
+alter table vehicles enable row level security;
+
+drop policy if exists "vehicles_select_members" on vehicles;
+create policy "vehicles_select_members" on vehicles for select
+  using (is_company_member(company_id));
+
+drop policy if exists "vehicles_insert_members" on vehicles;
+create policy "vehicles_insert_members" on vehicles for insert
+  with check (is_company_member(company_id));
+
+drop policy if exists "vehicles_update_members" on vehicles;
+create policy "vehicles_update_members" on vehicles for update
+  using (is_company_member(company_id));
+
+drop policy if exists "vehicles_delete_admin_only" on vehicles;
+create policy "vehicles_delete_admin_only" on vehicles for delete
+  using (is_company_admin(company_id));
