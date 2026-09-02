@@ -2,6 +2,7 @@ import { supabase } from "../lib/supabaseClient";
 
 export interface DashboardStats {
   todayAppointments: number;
+  completedToday: number;
   totalClients: number;
   pendingReminders: number;
   activeServices: number;
@@ -19,14 +20,21 @@ function startOfTomorrowISO() {
   return d.toISOString();
 }
 
-// 4 conteos en paralelo — todos usan RLS (is_company_member), así que
+// 5 conteos en paralelo — todos usan RLS (is_company_member), así que
 // automáticamente están limitados a la empresa activa sin filtrar "a mano".
 export async function getDashboardStats(companyId: string): Promise<DashboardStats> {
-  const [appointments, clients, reminders, services] = await Promise.all([
+  const [appointments, completed, clients, reminders, services] = await Promise.all([
     supabase
       .from("appointments")
       .select("id", { count: "exact", head: true })
       .eq("company_id", companyId)
+      .gte("starts_at", startOfTodayISO())
+      .lt("starts_at", startOfTomorrowISO()),
+    supabase
+      .from("appointments")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .eq("status", "atendida")
       .gte("starts_at", startOfTodayISO())
       .lt("starts_at", startOfTomorrowISO()),
     supabase
@@ -47,6 +55,7 @@ export async function getDashboardStats(companyId: string): Promise<DashboardSta
 
   return {
     todayAppointments: appointments.count ?? 0,
+    completedToday: completed.count ?? 0,
     totalClients: clients.count ?? 0,
     pendingReminders: reminders.count ?? 0,
     activeServices: services.count ?? 0,

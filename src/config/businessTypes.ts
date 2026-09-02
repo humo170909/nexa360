@@ -1,5 +1,14 @@
 import type { BusinessType } from "../types/company";
-import type { BusinessTypeConfig } from "../types/businessType";
+import type { BusinessTypeConfig, DashboardKpiSlot } from "../types/businessType";
+
+// Los 4 KPI universales — se usan para cualquier rubro que no tenga una
+// variación propia definida más abajo.
+export const DEFAULT_DASHBOARD_KPIS: DashboardKpiSlot[] = [
+  { metric: "appointmentsToday", label: "Citas de hoy", icon: "event_available" },
+  { metric: "entityTotal", label: "Total", icon: "group" },
+  { metric: "remindersPending", label: "Recordatorios pendientes", icon: "notification_important" },
+  { metric: "servicesActive", label: "Servicios activos", icon: "settings_suggest" },
+];
 
 // El corazón de "una sola plataforma configurable" (ver docs/arquitectura.md).
 // Cada entrada define SOLO las diferencias de un rubro respecto al núcleo
@@ -21,6 +30,12 @@ export const BUSINESS_TYPES: Record<BusinessType, BusinessTypeConfig> = {
       { key: "history", label: "Historia", icon: "history", path: "/history" },
       { key: "checkups", label: "Controles", icon: "fact_check", path: "/checkups" },
     ],
+    dashboardKpis: [
+      { metric: "appointmentsToday", label: "Citas de hoy", icon: "event_available" },
+      DEFAULT_DASHBOARD_KPIS[1],
+      DEFAULT_DASHBOARD_KPIS[2],
+      { metric: "servicesActive", label: "Tratamientos", icon: "medical_services" },
+    ],
   },
   optica: {
     // basado en mockup (captura8.html)
@@ -41,6 +56,12 @@ export const BUSINESS_TYPES: Record<BusinessType, BusinessTypeConfig> = {
     icon: "content_cut",
     entityLabel: "Clientes",
     extraModules: [],
+    dashboardKpis: [
+      { metric: "appointmentsToday", label: "Citas de hoy", icon: "event_available" },
+      DEFAULT_DASHBOARD_KPIS[1],
+      { metric: "completedToday", label: "Servicios realizados", icon: "task_alt" },
+      DEFAULT_DASHBOARD_KPIS[2],
+    ],
   },
   belleza: {
     // basado en mockup (captura11.html) — sin módulos extra
@@ -73,6 +94,12 @@ export const BUSINESS_TYPES: Record<BusinessType, BusinessTypeConfig> = {
       { key: "maintenance", label: "Mantenimientos", icon: "build", path: "/maintenance" },
       { key: "history", label: "Historial", icon: "history", path: "/history" },
     ],
+    dashboardKpis: [
+      { metric: "appointmentsToday", label: "Servicios de hoy", icon: "build" },
+      DEFAULT_DASHBOARD_KPIS[1],
+      DEFAULT_DASHBOARD_KPIS[2],
+      { metric: "servicesActive", label: "Mantenimientos", icon: "build_circle" },
+    ],
   },
   colegio: {
     // basado en mockup (captura13.html) + módulos planeados sin mockup aún
@@ -86,6 +113,12 @@ export const BUSINESS_TYPES: Record<BusinessType, BusinessTypeConfig> = {
       { key: "teachers", label: "Docentes", icon: "badge", path: "/teachers" },
       { key: "announcements", label: "Comunicados", icon: "campaign", path: "/announcements" },
     ],
+    dashboardKpis: [
+      { metric: "appointmentsToday", label: "Clases de hoy", icon: "event_available" },
+      DEFAULT_DASHBOARD_KPIS[1],
+      DEFAULT_DASHBOARD_KPIS[2],
+      DEFAULT_DASHBOARD_KPIS[3],
+    ],
   },
   academia: {
     // sin mockup de referencia — punto de partida, se refina al construir el módulo
@@ -97,6 +130,12 @@ export const BUSINESS_TYPES: Record<BusinessType, BusinessTypeConfig> = {
       { key: "courses", label: "Cursos", icon: "menu_book", path: "/courses" },
       { key: "teachers", label: "Profesores", icon: "badge", path: "/teachers" },
       { key: "enrollments", label: "Matrículas", icon: "how_to_reg", path: "/enrollments" },
+    ],
+    dashboardKpis: [
+      { metric: "appointmentsToday", label: "Clases de hoy", icon: "event_available" },
+      DEFAULT_DASHBOARD_KPIS[1],
+      DEFAULT_DASHBOARD_KPIS[2],
+      { metric: "servicesActive", label: "Cursos activos", icon: "menu_book" },
     ],
   },
   consultorio: {

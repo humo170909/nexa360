@@ -5,6 +5,8 @@ import { useBusinessType } from "../../hooks/useBusinessType";
 import { getDashboardStats, type DashboardStats } from "../../services/dashboard";
 import { getTodayAppointments } from "../../services/appointments";
 import { getRecentActivity } from "../../services/auditLogs";
+import { DEFAULT_DASHBOARD_KPIS } from "../../config/businessTypes";
+import type { DashboardKpiSlot, DashboardMetric } from "../../types/businessType";
 import {
   STATUS_LABEL,
   STATUS_TONE,
@@ -21,6 +23,22 @@ import {
   formatTime,
   formatDateLong,
 } from "../../lib/utils";
+
+function metricValue(metric: DashboardMetric, stats: DashboardStats | null): number | null {
+  if (!stats) return null;
+  switch (metric) {
+    case "appointmentsToday":
+      return stats.todayAppointments;
+    case "completedToday":
+      return stats.completedToday;
+    case "entityTotal":
+      return stats.totalClients;
+    case "remindersPending":
+      return stats.pendingReminders;
+    case "servicesActive":
+      return stats.activeServices;
+  }
+}
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -49,6 +67,7 @@ export function DashboardPage() {
 
   const entityLabel = businessType?.entityLabel ?? "Clientes";
   const firstName = (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0];
+  const kpiSlots: DashboardKpiSlot[] = businessType?.dashboardKpis ?? DEFAULT_DASHBOARD_KPIS;
 
   const activityItems: ActivityItem[] = activity.map((log) => ({
     id: log.id,
@@ -78,26 +97,14 @@ export function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          label="Citas de hoy"
-          value={loading ? "…" : stats?.todayAppointments ?? 0}
-          icon="event_available"
-        />
-        <StatCard
-          label={`${entityLabel} totales`}
-          value={loading ? "…" : stats?.totalClients ?? 0}
-          icon="group"
-        />
-        <StatCard
-          label="Recordatorios pendientes"
-          value={loading ? "…" : stats?.pendingReminders ?? 0}
-          icon="notification_important"
-        />
-        <StatCard
-          label="Servicios activos"
-          value={loading ? "…" : stats?.activeServices ?? 0}
-          icon="settings_suggest"
-        />
+        {kpiSlots.map((slot) => (
+          <StatCard
+            key={slot.metric}
+            label={slot.metric === "entityTotal" ? `${entityLabel} totales` : slot.label}
+            value={loading ? "…" : metricValue(slot.metric, stats) ?? 0}
+            icon={slot.icon}
+          />
+        ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

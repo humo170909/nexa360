@@ -7,6 +7,21 @@ export interface NavModule {
   path: string;
 }
 
+// Los únicos números que el Dashboard puede mostrar hoy sin inventar datos:
+// se calculan de verdad en services/dashboard.ts (getDashboardStats).
+export type DashboardMetric =
+  | "appointmentsToday"
+  | "completedToday"
+  | "entityTotal"
+  | "remindersPending"
+  | "servicesActive";
+
+export interface DashboardKpiSlot {
+  metric: DashboardMetric;
+  label: string;
+  icon: string;
+}
+
 export interface BusinessTypeConfig {
   id: BusinessType;
   label: string;
@@ -15,4 +30,6 @@ export interface BusinessTypeConfig {
   entityLabel: string;
   /** Módulos que se agregan al menú además de los universales (config/navigation.ts) */
   extraModules: NavModule[];
+  /** Los 4 KPI del Dashboard, en orden. Si se omite, se usa DEFAULT_DASHBOARD_KPIS. */
+  dashboardKpis?: DashboardKpiSlot[];
 }
