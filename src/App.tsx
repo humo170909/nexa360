@@ -12,6 +12,7 @@ import { ClientsPage } from "./pages/clients/ClientsPage";
 import { AgendaPage } from "./pages/agenda/AgendaPage";
 import { ComingSoonPage } from "./pages/ComingSoonPage";
 import { ServicesPage } from "./pages/services/ServicesPage";
+import { RemindersPage } from "./pages/reminders/RemindersPage";
 
 // Requiere sesión. Si el usuario aún no tiene empresa, lo manda al
 // onboarding antes de dejarlo entrar a cualquier pantalla interna.
@@ -91,6 +92,7 @@ function App() {
         <Route path="/clients" element={<ClientsPage />} />
         <Route path="/agenda" element={<AgendaPage />} />
         <Route path="/services" element={<ServicesPage />} />
+        <Route path="/reminders" element={<RemindersPage />} />
         {/* Cualquier módulo que el Sidebar ya lista (Servicios, Recordatorios,
             Tratamientos, Vehículos...) pero que todavía no tiene página real
             construida cae aquí, en vez de expulsar al usuario a /login. */}
