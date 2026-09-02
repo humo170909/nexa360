@@ -616,6 +616,75 @@ antes pero aplicadas juntas por primera vez:
 
 ---
 
+## Fase 18 — Cursos y Matrículas (Academia)
+
+### Qué se hizo
+
+Los últimos dos módulos específicos que faltaban de la ronda de "módulos
+por vertical" que arrancó con Mascotas. Con esto, **Docentes** (Fase
+17) queda demostrado como reutilizable de verdad: Academia no repitió
+esa tabla ni ese componente, solo agregó "Cursos" y "Matrículas" encima.
+
+- **Cursos** (`courses`): catálogo igual a Grados — nombre, profesor a
+  cargo (`teacher_id`, reutiliza la misma tabla `teachers` de Colegio),
+  descripción, precio.
+- **Matrículas** (`enrollments`): la primera relación
+  **muchos-a-muchos real** del proyecto. A diferencia de Padres/
+  Apoderados (Fase 17), donde deliberadamente evitamos esa complejidad
+  porque no hacía falta, acá SÍ se justifica: un alumno puede cursar
+  varios cursos y un curso tiene varios alumnos, y ambos lados
+  importan igual. La tabla tiene un `unique (student_id, course_id)`
+  para que la base de datos misma impida matricular dos veces al mismo
+  alumno en el mismo curso — no es una validación que dependa de que el
+  frontend se acuerde de chequearlo.
+
+### Archivos
+
+| Archivo | Propósito |
+|---|---|
+| `database/migration_courses.sql`, `migration_enrollments.sql` | **Nuevos.** Ejecutar en ese orden — `enrollments` depende de `courses` (y `courses` depende de `teachers`, ya creada en la Fase 17) |
+| `database/schema.sql` | +tablas `courses` (17) y `enrollments` (18) e índices |
+| `database/policies.sql` | +políticas RLS de ambas |
+| `src/types/course.ts`, `src/services/courses.ts`, `src/pages/courses/CoursesPage.tsx` | **Nuevos.** Calcado de `GradesPage.tsx` |
+| `src/types/enrollment.ts`, `src/services/enrollments.ts`, `src/pages/enrollments/EnrollmentsPage.tsx` | **Nuevos.** Doble join (alumno + curso), maneja el error de duplicado (código Postgres `23505`) con un mensaje legible en vez del texto crudo de la base de datos |
+| `src/App.tsx` | Rutas `/courses` y `/enrollments` |
+
+### Cómo probarlo
+
+1. Si tu proyecto ya tiene `teachers` de la Fase 17, corre solo
+   `migration_courses.sql` y después `migration_enrollments.sql`. Si es
+   un proyecto nuevo, recuerda que `teachers` tiene que existir primero.
+2. `npm run dev`, entra con una empresa tipo **Academia**.
+3. Crea un curso en "Cursos" (opcionalmente asígnale un profesor — la
+   lista sale de la misma tabla que ya usa Colegio).
+4. Crea un alumno en "Alumnos", luego matricúlalo en "Matrículas".
+5. Intenta matricular al mismo alumno en el mismo curso una segunda
+   vez — debería rechazarlo con "Este alumno ya está matriculado en ese
+   curso" en vez de un error técnico.
+
+### Qué deberías aprender
+
+- La diferencia entre una relación que se modela con `owner_id` (una
+  fila "pertenece" a un cliente — Mascotas, Vehículos, Padres/
+  Apoderados) y una que necesita una tabla de unión de verdad
+  (Matrículas): la señal es si ambos lados de la relación necesitan
+  poder verse desde el otro (¿cuántos alumnos tiene este curso? Y
+  también, ¿en qué cursos está este alumno?). Cuando la pregunta
+  importa en las dos direcciones, hace falta una tabla propia.
+- Por qué un `unique (a, b)` en la base de datos es mejor que confiar
+  en que el frontend valide "no dejes matricular dos veces": cualquier
+  otro cliente de la API (un script, otra pantalla futura, Supabase
+  Studio) queda protegido igual, sin depender de que alguien recuerde
+  repetir la misma validación en JavaScript.
+
+Con esto quedan construidos todos los módulos específicos que se
+identificaron al inicio de esta ronda (Mascotas, Vehículos, Medidas
+visuales, Ventas, Docentes/Grados/Padres-Apoderados/Comunicados,
+Cursos/Matrículas) — los 18 verticales de NEXA360 ya tienen contenido
+real y diferenciado en su Sidebar, no solo el Dashboard genérico.
+
+---
+
 ## Próximos pasos
 
 **Fase 11 — Servicios**: CRUD completo (nombre, descripción, duración,

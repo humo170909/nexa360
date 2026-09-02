@@ -421,3 +421,47 @@ create policy "announcements_update_members" on announcements for update
 drop policy if exists "announcements_delete_admin_only" on announcements;
 create policy "announcements_delete_admin_only" on announcements for delete
   using (is_company_admin(company_id));
+
+-- ------------------------------------------------------------
+-- courses — cursos (módulo específico de Academia). Mismo patrón que
+-- grades: catálogo con un docente a cargo opcional.
+-- ------------------------------------------------------------
+alter table courses enable row level security;
+
+drop policy if exists "courses_select_members" on courses;
+create policy "courses_select_members" on courses for select
+  using (is_company_member(company_id));
+
+drop policy if exists "courses_insert_members" on courses;
+create policy "courses_insert_members" on courses for insert
+  with check (is_company_member(company_id));
+
+drop policy if exists "courses_update_members" on courses;
+create policy "courses_update_members" on courses for update
+  using (is_company_member(company_id));
+
+drop policy if exists "courses_delete_admin_only" on courses;
+create policy "courses_delete_admin_only" on courses for delete
+  using (is_company_admin(company_id));
+
+-- ------------------------------------------------------------
+-- enrollments — matrículas (módulo específico de Academia). Conecta un
+-- alumno con un curso.
+-- ------------------------------------------------------------
+alter table enrollments enable row level security;
+
+drop policy if exists "enrollments_select_members" on enrollments;
+create policy "enrollments_select_members" on enrollments for select
+  using (is_company_member(company_id));
+
+drop policy if exists "enrollments_insert_members" on enrollments;
+create policy "enrollments_insert_members" on enrollments for insert
+  with check (is_company_member(company_id));
+
+drop policy if exists "enrollments_update_members" on enrollments;
+create policy "enrollments_update_members" on enrollments for update
+  using (is_company_member(company_id));
+
+drop policy if exists "enrollments_delete_admin_only" on enrollments;
+create policy "enrollments_delete_admin_only" on enrollments for delete
+  using (is_company_admin(company_id));

@@ -322,6 +322,42 @@ create table announcements (
 );
 
 -- ------------------------------------------------------------
+-- 17. courses — cursos (módulo específico de Academia). Reutiliza
+--     "teachers" (compartida con Colegio) para el profesor a cargo.
+--     Ver database/migration_courses.sql si tu proyecto ya existía
+--     antes de esta tabla.
+-- ------------------------------------------------------------
+create table courses (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies (id) on delete cascade,
+  name text not null,
+  teacher_id uuid references teachers (id) on delete set null,
+  description text,
+  price numeric(10, 2),
+  notes text,
+  created_at timestamptz not null default now()
+);
+
+-- ------------------------------------------------------------
+-- 18. enrollments — matrículas (módulo específico de Academia). Primer
+--     caso real de relación muchos-a-muchos: conecta un alumno
+--     (clients) con un curso (courses). Ver
+--     database/migration_enrollments.sql si tu proyecto ya existía
+--     antes de esta tabla.
+-- ------------------------------------------------------------
+create table enrollments (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies (id) on delete cascade,
+  student_id uuid not null references clients (id) on delete cascade,
+  course_id uuid not null references courses (id) on delete cascade,
+  status text not null default 'activa' check (status in ('activa', 'completada', 'cancelada')),
+  enrolled_at date not null default current_date,
+  notes text,
+  created_at timestamptz not null default now(),
+  unique (student_id, course_id)
+);
+
+-- ------------------------------------------------------------
 -- Índices — filtrar por company_id es la operación más frecuente
 -- de toda la app; esto la mantiene rápida aunque crezcan los datos.
 -- ------------------------------------------------------------
@@ -348,3 +384,8 @@ create index idx_grades_teacher on grades (teacher_id);
 create index idx_guardians_company on guardians (company_id);
 create index idx_guardians_owner on guardians (owner_id);
 create index idx_announcements_company on announcements (company_id);
+create index idx_courses_company on courses (company_id);
+create index idx_courses_teacher on courses (teacher_id);
+create index idx_enrollments_company on enrollments (company_id);
+create index idx_enrollments_student on enrollments (student_id);
+create index idx_enrollments_course on enrollments (course_id);

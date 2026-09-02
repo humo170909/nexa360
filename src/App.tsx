@@ -27,6 +27,8 @@ import { TeachersPage } from "./pages/teachers/TeachersPage";
 import { GradesPage } from "./pages/grades/GradesPage";
 import { GuardiansPage } from "./pages/guardians/GuardiansPage";
 import { AnnouncementsPage } from "./pages/announcements/AnnouncementsPage";
+import { CoursesPage } from "./pages/courses/CoursesPage";
+import { EnrollmentsPage } from "./pages/enrollments/EnrollmentsPage";
 
 // Requiere sesión. Si el usuario aún no tiene empresa, lo manda al
 // onboarding antes de dejarlo entrar a cualquier pantalla interna.
@@ -121,6 +123,8 @@ function App() {
         <Route path="/grades" element={<GradesPage />} />
         <Route path="/guardians" element={<GuardiansPage />} />
         <Route path="/announcements" element={<AnnouncementsPage />} />
+        <Route path="/courses" element={<CoursesPage />} />
+        <Route path="/enrollments" element={<EnrollmentsPage />} />
         {/* Cualquier módulo que el Sidebar ya lista (Servicios, Recordatorios,
             Tratamientos, Vehículos...) pero que todavía no tiene página real
             construida cae aquí, en vez de expulsar al usuario a /login. */}
