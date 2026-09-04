@@ -685,6 +685,48 @@ real y diferenciado en su Sidebar, no solo el Dashboard genérico.
 
 ---
 
+## Fase 19 — Cambiar roles desde Configuración → Usuarios
+
+### Qué se hizo
+
+La pestaña "Usuarios" de Configuración mostraba el rol de cada persona
+(`ADMIN`/`USUARIO`) como una etiqueta de solo lectura. Ahora, si tú eres
+ADMIN, esa etiqueta se convierte en un `<select>` para reasignar el rol
+de cualquier otro miembro — con una excepción: nunca se te muestra el
+select sobre tu propia fila, para que no puedas quitarte a ti mismo el
+único acceso de administrador que tienes por accidente.
+
+No fue necesario crear ninguna tabla nueva: `company_users.role` y su
+política RLS de UPDATE (`company_users_update_admin_or_superadmin`) ya
+existían desde la Fase 5 — solo faltaba la interfaz para usarlo.
+
+### Archivos
+
+| Archivo | Propósito |
+|---|---|
+| `src/services/companies.ts` | +`companyUserId` en `CompanyMemberDetailed` (antes solo tenía el id del perfil, no el de la fila `company_users` — hacía falta para poder apuntar el UPDATE) y +`updateMemberRole()` |
+| `src/pages/settings/UsersTab.tsx` | El Badge de rol se reemplaza por un `<select>` cuando el usuario actual es ADMIN y la fila no es la suya propia |
+
+### Cómo probarlo
+
+Necesitas una empresa con al menos 2 usuarios (tú como ADMIN + otra
+cuenta que hayas agregado antes a `company_users` manualmente, ya que
+"Invitar usuario" todavía no está construido). Entra a Configuración →
+Usuarios, cambia el rol del otro usuario, y confirma que el cambio
+persiste al recargar la página.
+
+### Qué deberías aprender
+
+La protección real no está en que el `<select>` se oculte en tu propia
+fila — eso es solo UX. La protección real es la política RLS: si
+alguien manipulase el HTML con las herramientas de desarrollador para
+mostrar el select en su propia fila e intentara bajarse el rol (o
+peor, subírselo desde una cuenta ajena sin ser ADMIN), Supabase
+rechazaría la actualización igual, porque `is_company_admin()` se
+evalúa en la base de datos, no en el navegador.
+
+---
+
 ## Próximos pasos
 
 **Fase 11 — Servicios**: completada (`ServicesPage.tsx` ya tiene el

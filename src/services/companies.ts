@@ -83,6 +83,9 @@ export async function updateCompanyName(companyId: string, name: string) {
 
 export interface CompanyMemberDetailed extends CompanyMember {
   role: CompanyRole;
+  // id de la fila en company_users (distinto del id del usuario) — hace
+  // falta para poder editar/eliminar ese vínculo puntual con updateMemberRole.
+  companyUserId: string;
 }
 
 // Igual que getCompanyMembers, pero con el rol incluido — para la
@@ -92,7 +95,7 @@ export async function listCompanyUsersDetailed(
 ): Promise<CompanyMemberDetailed[]> {
   const { data, error } = await supabase
     .from("company_users")
-    .select("role, profiles(id, full_name)")
+    .select("id, role, profiles(id, full_name)")
     .eq("company_id", companyId);
 
   if (error || !data) return [];
@@ -100,7 +103,16 @@ export async function listCompanyUsersDetailed(
     .map((row) => {
       const profile = row.profiles as unknown as CompanyMember | null;
       if (!profile) return null;
-      return { ...profile, role: row.role as CompanyRole };
+      return { ...profile, role: row.role as CompanyRole, companyUserId: row.id as string };
     })
     .filter((m): m is CompanyMemberDetailed => m !== null);
+}
+
+// Cambia el rol de un miembro ya existente. Protegido por RLS
+// ("company_users_update_admin_or_superadmin" en database/policies.sql):
+// solo un ADMIN de la empresa (o SUPERADMIN) puede ejecutar esto con éxito,
+// aunque alguien manipule la petición desde el navegador.
+export async function updateMemberRole(companyUserId: string, role: CompanyRole) {
+  const { error } = await supabase.from("company_users").update({ role }).eq("id", companyUserId);
+  return { error: error?.message ?? null };
 }

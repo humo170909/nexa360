@@ -1,22 +1,51 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "../../hooks/useAuth";
 import { useCompany } from "../../hooks/useCompany";
-import { listCompanyUsersDetailed, type CompanyMemberDetailed } from "../../services/companies";
+import {
+  listCompanyUsersDetailed,
+  updateMemberRole,
+  type CompanyMemberDetailed,
+} from "../../services/companies";
+import { logAction } from "../../services/auditLogs";
+import type { CompanyRole } from "../../types/company";
 import { DataTable } from "../../components/DataTable";
 import { Badge } from "../../components/ui/Badge";
 
 export function UsersTab() {
-  const { company } = useCompany();
+  const { user } = useAuth();
+  const { company, role } = useCompany();
   const [members, setMembers] = useState<CompanyMemberDetailed[]>([]);
   const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState<string | null>(null);
 
-  useEffect(() => {
+  async function refresh() {
     if (!company) return;
     setLoading(true);
-    listCompanyUsersDetailed(company.id).then((data) => {
-      setMembers(data);
-      setLoading(false);
-    });
+    const data = await listCompanyUsersDetailed(company.id);
+    setMembers(data);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    refresh();
   }, [company]);
+
+  async function handleRoleChange(member: CompanyMemberDetailed, newRole: CompanyRole) {
+    if (!company || newRole === member.role) return;
+    setSavingId(member.companyUserId);
+    const { error } = await updateMemberRole(member.companyUserId, newRole);
+    if (error) {
+      alert("No se pudo cambiar el rol (revisa tus permisos).");
+      setSavingId(null);
+      return;
+    }
+    await logAction(company.id, user?.id ?? null, "company_user.role_change", {
+      target_user_id: member.id,
+      new_role: newRole,
+    });
+    setSavingId(null);
+    refresh();
+  }
 
   return (
     <div className="space-y-4">
@@ -45,13 +74,30 @@ export function UsersTab() {
               { header: "Nombre", render: (m: CompanyMemberDetailed) => m.full_name ?? "—" },
               {
                 header: "Rol",
-                render: (m: CompanyMemberDetailed) => (
-                  <Badge tone={m.role === "ADMIN" ? "success" : "neutral"}>{m.role}</Badge>
-                ),
+                render: (m: CompanyMemberDetailed) => {
+                  // Solo un ADMIN puede reasignar roles, y nunca el suyo propio
+                  // (evita que se quite el único acceso de administrador que tiene).
+                  const isSelf = m.id === user?.id;
+                  if (role !== "ADMIN" || isSelf) {
+                    return <Badge tone={m.role === "ADMIN" ? "success" : "neutral"}>{m.role}</Badge>;
+                  }
+                  return (
+                    <select
+                      aria-label={`Rol de ${m.full_name ?? "usuario"}`}
+                      value={m.role}
+                      disabled={savingId === m.companyUserId}
+                      onChange={(e) => handleRoleChange(m, e.target.value as CompanyRole)}
+                      className="h-9 px-2 rounded-lg bg-surface-container-lowest border border-outline-variant text-label-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary transition-all disabled:opacity-50"
+                    >
+                      <option value="ADMIN">ADMIN</option>
+                      <option value="USUARIO">USUARIO</option>
+                    </select>
+                  );
+                },
               },
             ]}
             rows={members}
-            getRowKey={(m) => m.id}
+            getRowKey={(m) => m.companyUserId}
             emptyMessage="No hay usuarios registrados."
           />
         )}

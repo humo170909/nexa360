@@ -16,9 +16,10 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: "audit", label: "Auditoría", icon: "history" },
 ];
 
-// Roles/Permisos, Horarios, Notificaciones e Integraciones no tienen
-// pestaña propia todavía — requieren tablas o backend que aún no existen
-// (ver docs/notificaciones.md). Se agregan cuando construyamos eso.
+// Roles ya es real (cambiar ADMIN/USUARIO desde la pestaña Usuarios), no
+// necesita pestaña propia. Permisos granulares, Horarios, Notificaciones
+// e Integraciones siguen sin pestaña — requieren tablas o backend que aún
+// no existen (ver docs/notificaciones.md). Se agregan cuando construyamos eso.
 export function SettingsPage() {
   const [tab, setTab] = useState<Tab>("company");
 
