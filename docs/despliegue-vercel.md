@@ -1,5 +1,7 @@
 # Despliegue en Vercel — NEXA360
 
+> **Estado**: ya desplegado — https://nexa360-navy.vercel.app/
+
 ## 1. Subir el proyecto a GitHub — ya hecho ✓
 
 El repositorio ya está en `https://github.com/humo170909/nexa360`, con
