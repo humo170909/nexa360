@@ -1,0 +1,11 @@
+# Configuración mínima de Supabase CLI para este proyecto — solo lo
+# necesario para desplegar la Edge Function de recordatorios. No se usa
+# desarrollo local de Supabase (base de datos/auth local); seguimos
+# trabajando siempre contra el proyecto real en la nube.
+project_id = "nexa360"
+
+[functions.send-reminders]
+# false porque quien llama a esta función es el cron job de Postgres, no
+# una persona logueada — no hay JWT de usuario que verificar. La función
+# se protege en su lugar con el header "x-cron-secret" (ver su código).
+verify_jwt = false

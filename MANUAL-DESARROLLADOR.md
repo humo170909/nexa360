@@ -800,12 +800,86 @@ control fino sin estar realmente probado ni protegido en cada capa.
 
 ---
 
+## Fase 21 — Envío real de recordatorios por email
+
+### Qué se hizo
+
+Hasta ahora, un recordatorio se guardaba en la tabla `reminders` pero
+nunca se enviaba de verdad — quedaba en `status = 'pendiente'` para
+siempre. Esta fase conecta el envío real usando
+[Resend](https://resend.com) como proveedor de email, con la pieza que
+faltaba: **algo que corra del lado del servidor**, no en el navegador.
+
+El proyecto no tiene (ni necesita) un backend propio tipo Node/Express
+— para esto se usa una **Supabase Edge Function**, que es código que
+corre en los servidores de Supabase bajo demanda. Un cron job de
+Postgres la llama cada 10 minutos; ella revisa qué recordatorios ya
+deberían enviarse, llama a la API de Resend, y actualiza el estado a
+`enviado` o `fallido` según el resultado.
+
+### Por qué esto no podía vivir en el frontend
+
+Enviar el email requiere la API key de Resend, y actualizar el estado
+del recordatorio para CUALQUIER empresa requiere saltarse RLS (la
+`SERVICE_ROLE_KEY`). Ninguna de las dos puede existir en código que se
+descarga al navegador — cualquiera podría abrir las herramientas de
+desarrollador y robarlas. Una Edge Function es la pieza de
+infraestructura mínima necesaria para tener un lugar seguro donde vivan
+esos secretos, sin montar un servidor propio que mantener.
+
+### Archivos
+
+| Archivo | Propósito |
+|---|---|
+| `supabase/functions/send-reminders/index.ts` | **Nuevo.** La Edge Function: busca recordatorios pendientes vencidos, llama a Resend, actualiza el estado |
+| `supabase/config.toml` | **Nuevo.** Mínimo necesario — declara la función y desactiva la verificación de JWT de usuario (quien la llama es el cron de Postgres, no una persona logueada) |
+| `database/migration_reminder_cron.sql` | **Nuevo.** Activa `pg_cron`/`pg_net` y programa la llamada cada 10 minutos. El secreto que autoriza la llamada se guarda con `vault.create_secret` — nunca queda escrito en texto plano en este archivo ni en git |
+| `docs/notificaciones.md` | Reescrito con los pasos reales de despliegue (antes era solo el plan conceptual) |
+| `.gitignore` | +`supabase/.temp`, `supabase/.branches` (metadata local del CLI, no secretos, pero tampoco pertenece al repositorio) |
+
+### Cómo desplegarlo (pasos que tienes que hacer tú — ver `docs/notificaciones.md` para el detalle completo)
+
+1. Cuenta gratis en resend.com → copiar API key.
+2. `npx supabase login` y `npx supabase link --project-ref ogfdrizmfqufodxnfxvt`.
+3. `npx supabase secrets set RESEND_API_KEY=... CRON_SECRET=...` (el
+   `CRON_SECRET` te lo di en el chat — un valor aleatorio de 32 bytes,
+   generado una sola vez para este propósito).
+4. `npx supabase functions deploy send-reminders`.
+5. Guardar ese mismo `CRON_SECRET` en Supabase Vault (un comando SQL,
+   ver el encabezado de `migration_reminder_cron.sql`) y correr el resto
+   de ese archivo.
+
+### Qué deberías aprender
+
+- **Vault vs. variables de entorno de la función**: el `CRON_SECRET`
+  vive en dos lugares — como secreto de la Edge Function (para que ella
+  pueda comparar el header que recibe) y en Supabase Vault (para que el
+  cron job de Postgres pueda mandarlo sin que quede escrito en texto
+  plano en la definición del job, que cualquier administrador de la
+  base de datos podría leer con `select * from cron.job`).
+- **`verify_jwt = false` no es "sin seguridad"**: significa que esta
+  función en particular no exige la sesión de un usuario humano, porque
+  quien la llama es un proceso interno de Postgres — pero sigue exigiendo
+  su propio secreto (`x-cron-secret`). Desactivar una capa de seguridad
+  está bien cuando la reemplazas por otra apropiada al caso real, no
+  cuando simplemente la quitas.
+- **Por qué un cron en la base de datos y no un `setInterval` en algún
+  lado**: no hay ningún servidor propio corriendo 24/7 en este proyecto
+  (a propósito, para no tener infraestructura que mantener) — Postgres
+  ya está corriendo siempre, así que programar el trabajo ahí (con
+  `pg_cron`) no agrega una pieza nueva de infraestructura.
+
+---
+
 ## Próximos pasos
 
 **Fase 11 — Servicios**: completada (`ServicesPage.tsx` ya tiene el
 CRUD completo — crear, editar, activar/desactivar, eliminar — este
 apunte quedó desactualizado desde entonces).
 
-**Pendiente real**: envío real de recordatorios por email (hoy solo se
-registran en la tabla `reminders`, no se envían — WhatsApp/SMS siguen
-mostrando "Próximamente" a propósito) y deploy a Vercel.
+**Pendiente real**: el código del envío real de recordatorios ya está
+construido (Fase 21), pero falta que TÚ lo despliegues (cuenta de
+Resend, secretos, `supabase functions deploy`) — hasta que eso pase,
+los recordatorios se siguen quedando en "Pendiente" para siempre.
+WhatsApp/SMS siguen mostrando "Próximamente" a propósito. También queda
+pendiente el deploy a Vercel.

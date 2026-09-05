@@ -17,6 +17,11 @@ dist-ssr
 .env.local
 .env.*.local
 
+# Supabase CLI local state (project link cache, never secrets themselves,
+# but no reason to commit machine-specific CLI metadata)
+supabase/.temp
+supabase/.branches
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
