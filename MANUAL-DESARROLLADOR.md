@@ -1445,3 +1445,46 @@ SUPERADMIN separado de las empresas, roles ADMIN/USUARIO reales,
 invitación de empresa Y de usuario, suspensión real, auditoría
 completa, y documentación — ya está construido y commiteado
 localmente.
+
+---
+
+## Fase 28 — `getMyCompanies()` no filtraba por usuario
+
+### Qué se hizo
+
+Al investigar el error 401 en producción, encontré un bug de verdad
+que no tenía que ver con el 401, pero era más serio: `getMyCompanies()`
+(`src/services/companies.ts`) nunca filtró por `user_id` — confiaba por
+completo en RLS para acotar los resultados. Eso funcionaba bien para
+un ADMIN/USUARIO normal (la política exige `is_company_member`, que sí
+revisa `user_id`), pero para un SUPERADMIN la misma política tiene un
+segundo camino: `or is_superadmin()`, que **no depende de la fila** —
+así que un SUPERADMIN podía leer TODAS las filas de `company_users`, de
+cualquier empresa. Como la función no filtraba nada y el código toma
+`memberships[0]` como "mi empresa", un SUPERADMIN corría el riesgo de
+que se le asignara la empresa de otro tenant, elegida al azar según el
+orden en que Postgres devolviera las filas.
+
+### Archivos
+
+| Archivo | Propósito |
+|---|---|
+| `src/services/companies.ts` | `getMyCompanies()` ahora filtra explícitamente `.eq("user_id", user.id)`, no depende solo de RLS |
+
+### Cómo probarlo
+
+Con tu cuenta SUPERADMIN (`superadmin@admin.com`), entra a la
+plataforma — no debería mostrarte ninguna empresa como "propia" (cae en
+`/superadmin`, no en el dashboard de ninguna empresa ajena).
+
+### Qué deberías aprender
+
+RLS te protege de que alguien lea datos que no debería — pero una
+política diseñada para dar acceso amplio a un rol (SUPERADMIN viendo
+"todo" para poder administrar) puede filtrarse sin querer hacia una
+consulta que asumía un alcance más angosto ("solo lo mío"). La lección:
+cuando una tabla tiene una política RLS con un `or` que da acceso
+amplio a cierto rol, cualquier consulta contra esa tabla que dependa
+SOLO de RLS para acotarse a "lo mío" necesita revisarse — RLS es el
+piso de seguridad, no reemplaza filtrar explícitamente cuando la
+consulta tiene una intención más específica que la política.

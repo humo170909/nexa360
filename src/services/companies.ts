@@ -15,9 +15,22 @@ export interface CompanyMembership {
 // soporta pertenecer a varias empresas, esta consulta ya devuelve el
 // arreglo completo.
 export async function getMyCompanies(): Promise<CompanyMembership[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  // Filtro explícito por user_id, no confiar solo en RLS: la política de
+  // "company_users" deja ver TODAS las filas a un SUPERADMIN
+  // (is_superadmin() no depende de la fila), a propósito para pantallas
+  // como el panel de Empresas. Pero esta función responde "¿a qué
+  // empresa pertenezco YO?" — sin este filtro, un SUPERADMIN recibiría
+  // las membresías de TODAS las empresas y el código tomaría la primera
+  // al azar como si fuera la suya.
   const { data, error } = await supabase
     .from("company_users")
-    .select("role, companies(*)");
+    .select("role, companies(*)")
+    .eq("user_id", user.id);
 
   if (error || !data) return [];
   return data
