@@ -33,6 +33,26 @@ Nunca pegues ahí la `SUPABASE_SERVICE_ROLE_KEY`.
 Cada `git push` a la rama principal dispara un nuevo deploy automático.
 Vercel entrega una URL pública (`nexa360.vercel.app` o similar).
 
+## 4b. `vercel.json` — obligatorio para una SPA de React Router
+
+Sin esto, refrescar la página (o entrar directo) en cualquier ruta que
+no sea `/` — `/dashboard`, `/superadmin`, `/login` — da un **404 de
+Vercel**, no un error de la app: Vercel busca un archivo real en ese
+path, no lo encuentra (todo el ruteo lo hace React Router, en el
+navegador), y devuelve 404 antes de que React llegue a cargar. El
+archivo `vercel.json` en la raíz del proyecto le dice a Vercel que
+cualquier ruta sin archivo coincidente se sirva como `index.html`:
+
+```json
+{
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
+```
+
+Los archivos reales (`/assets/index-xxxx.js`, etc.) se siguen sirviendo
+normalmente — Vercel revisa primero si existe un archivo en ese path
+antes de aplicar el rewrite, así que esto no rompe la carga de tu CSS/JS.
+
 ## 5. Verificar
 
 Abre la URL. Si algo falla, revisa la pestaña "Deployments" en Vercel — ahí
