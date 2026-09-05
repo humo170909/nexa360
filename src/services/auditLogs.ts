@@ -35,6 +35,25 @@ export async function listAuditLogDetailed(
   return data as unknown as AuditLogWithUser[];
 }
 
+export interface AuditLogGlobal extends AuditLog {
+  user: { full_name: string | null } | null;
+  company: { name: string } | null;
+}
+
+// Para el panel SUPERADMIN → Auditoría: todas las empresas, no solo una
+// (RLS ya lo permite solo si is_superadmin()). AuditTab.tsx usa la
+// versión filtrada por empresa; esta es la vista global.
+export async function listAllAuditLogs(limit = 100): Promise<AuditLogGlobal[]> {
+  const { data, error } = await supabase
+    .from("audit_logs")
+    .select("*, user:profiles(full_name), company:companies(name)")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error || !data) return [];
+  return data as unknown as AuditLogGlobal[];
+}
+
 // Se usa desde cualquier parte de la app para registrar una acción.
 // No lanza si falla (la auditoría nunca debe romper la funcionalidad
 // principal) — solo lo reporta en consola.

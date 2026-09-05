@@ -8,6 +8,11 @@ import {
 } from "react";
 import { useAuth } from "./useAuth";
 import { getMyCompanies } from "../services/companies";
+import {
+  getPendingRedemption,
+  clearPendingRedemption,
+  redeemInvitationCode,
+} from "../services/invitations";
 import type { Company, CompanyRole } from "../types/company";
 
 interface CompanyContextValue {
@@ -36,7 +41,28 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       return;
     }
     setLoading(true);
-    const memberships = await getMyCompanies();
+    let memberships = await getMyCompanies();
+
+    // Cubre el caso donde el registro quedó "a medias": el usuario validó
+    // un código y confirmó su email más tarde (Supabase Auth con
+    // "Confirmar email" activado), así que redeem_invitation_code no
+    // pudo correr en el momento del registro por falta de sesión. Ahora
+    // que sí hay sesión (llegamos hasta acá), la completamos.
+    if (memberships.length === 0) {
+      const pending = getPendingRedemption();
+      if (pending) {
+        const result = await redeemInvitationCode(
+          pending.code,
+          pending.companyName,
+          pending.businessType,
+        );
+        clearPendingRedemption();
+        if (result.success) {
+          memberships = await getMyCompanies();
+        }
+      }
+    }
+
     // MVP: un usuario opera sobre una sola empresa a la vez (la primera
     // que le aparezca). Soportar cambiar entre varias es una mejora futura.
     setCompany(memberships[0]?.company ?? null);

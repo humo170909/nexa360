@@ -105,10 +105,13 @@ create policy "companies_select_members_or_superadmin"
     or owner_id = auth.uid()
   );
 
+-- Fase 22: se ELIMINÓ "companies_insert_authenticated" (permitía crear
+-- una empresa a cualquier autenticado). A propósito NO hay política de
+-- reemplazo para "insert" — sin ninguna política permisiva, RLS deniega
+-- el insert por defecto. La única forma de crear una empresa ahora es
+-- la función redeem_invitation_code() (ver el bloque de invitaciones más
+-- abajo), que exige un código válido y corre con privilegios elevados.
 drop policy if exists "companies_insert_authenticated" on companies;
-create policy "companies_insert_authenticated"
-  on companies for insert
-  with check (auth.uid() is not null);
 
 drop policy if exists "companies_update_admin_or_superadmin" on companies;
 create policy "companies_update_admin_or_superadmin"
@@ -487,3 +490,159 @@ create policy "business_hours_update_members" on business_hours for update
 drop policy if exists "business_hours_delete_admin_only" on business_hours;
 create policy "business_hours_delete_admin_only" on business_hours for delete
   using (is_company_admin(company_id));
+
+-- ------------------------------------------------------------
+-- invitations / invitation_attempts — registro controlado (Fase 22).
+-- Nadie fuera de SUPERADMIN toca estas tablas directamente; todo el
+-- acceso real pasa por las 2 funciones de abajo (SECURITY DEFINER).
+-- ------------------------------------------------------------
+alter table invitations enable row level security;
+
+drop policy if exists "invitations_select_superadmin" on invitations;
+create policy "invitations_select_superadmin" on invitations for select
+  using (is_superadmin());
+
+drop policy if exists "invitations_insert_superadmin" on invitations;
+create policy "invitations_insert_superadmin" on invitations for insert
+  with check (is_superadmin());
+
+drop policy if exists "invitations_update_superadmin" on invitations;
+create policy "invitations_update_superadmin" on invitations for update
+  using (is_superadmin());
+
+-- Sin política de DELETE a propósito: un código se desactiva
+-- (is_active = false), nunca se borra.
+
+alter table invitation_attempts enable row level security;
+
+drop policy if exists "invitation_attempts_select_superadmin" on invitation_attempts;
+create policy "invitation_attempts_select_superadmin" on invitation_attempts for select
+  using (is_superadmin());
+
+-- Sin política de INSERT: solo escribe ahí validate_invitation_code
+-- (SECURITY DEFINER, se salta RLS).
+
+-- validate_invitation_code — solo LEE. La usa el Paso 1 del registro,
+-- antes de que exista ninguna sesión (rol "anon").
+create or replace function public.validate_invitation_code(p_code text)
+returns json
+language plpgsql
+security definer
+-- incluye "extensions" porque digest() (de pgcrypto) puede vivir ahí en
+-- vez de en "public", según cómo Supabase haya instalado la extensión.
+set search_path = public, extensions
+as $$
+declare
+  v_ip text;
+  v_recent_failures integer;
+  v_hash text;
+  v_invitation invitations%rowtype;
+begin
+  begin
+    v_ip := split_part(
+      current_setting('request.headers', true)::json ->> 'x-forwarded-for',
+      ',', 1
+    );
+  exception when others then
+    v_ip := null;
+  end;
+
+  if v_ip is not null then
+    select count(*) into v_recent_failures
+    from invitation_attempts
+    where ip_address = v_ip
+      and attempted_at > now() - interval '15 minutes';
+
+    if v_recent_failures >= 10 then
+      return json_build_object('valid', false, 'reason', 'rate_limited');
+    end if;
+  end if;
+
+  v_hash := encode(digest(upper(trim(p_code)), 'sha256'), 'hex');
+
+  select * into v_invitation from invitations where code_hash = v_hash;
+
+  if not found then
+    insert into invitation_attempts (ip_address) values (v_ip);
+    return json_build_object('valid', false, 'reason', 'invalid');
+  end if;
+
+  if not v_invitation.is_active then
+    insert into invitation_attempts (ip_address) values (v_ip);
+    return json_build_object('valid', false, 'reason', 'disabled');
+  end if;
+
+  if v_invitation.expires_at < now() then
+    insert into invitation_attempts (ip_address) values (v_ip);
+    return json_build_object('valid', false, 'reason', 'expired');
+  end if;
+
+  if v_invitation.used_count >= v_invitation.max_uses then
+    insert into invitation_attempts (ip_address) values (v_ip);
+    return json_build_object('valid', false, 'reason', 'used');
+  end if;
+
+  return json_build_object('valid', true, 'reason', 'ok');
+end;
+$$;
+
+grant execute on function public.validate_invitation_code(text) to anon, authenticated;
+
+-- redeem_invitation_code — la única forma de crear una empresa. Requiere
+-- sesión (se llama DESPUÉS de supabase.auth.signUp()). Vuelve a validar
+-- todo — no confía en que el Paso 1 siga vigente.
+create or replace function public.redeem_invitation_code(
+  p_code text,
+  p_company_name text,
+  p_business_type business_type
+)
+returns json
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_hash text;
+  v_invitation invitations%rowtype;
+  v_company companies%rowtype;
+  v_user_id uuid := auth.uid();
+begin
+  if v_user_id is null then
+    return json_build_object('success', false, 'reason', 'not_authenticated');
+  end if;
+
+  v_hash := encode(digest(upper(trim(p_code)), 'sha256'), 'hex');
+
+  -- "for update" impide que dos personas canjeen el mismo código de un
+  -- solo uso al mismo tiempo.
+  select * into v_invitation from invitations where code_hash = v_hash for update;
+
+  if not found
+     or not v_invitation.is_active
+     or v_invitation.expires_at < now()
+     or v_invitation.used_count >= v_invitation.max_uses then
+    return json_build_object('success', false, 'reason', 'invalid');
+  end if;
+
+  insert into companies (name, business_type, owner_id)
+  values (p_company_name, p_business_type, v_user_id)
+  returning * into v_company;
+  -- El trigger "handle_new_company" (schema.sql) crea la fila en
+  -- company_users con role='ADMIN' — no se duplica esa lógica acá.
+
+  update invitations
+    set used_count = used_count + 1,
+        company_id = v_company.id
+    where id = v_invitation.id;
+
+  insert into audit_logs (company_id, user_id, action, metadata)
+  values (
+    v_company.id, v_user_id, 'invitation.used',
+    jsonb_build_object('invitation_id', v_invitation.id)
+  );
+
+  return json_build_object('success', true, 'company_id', v_company.id);
+end;
+$$;
+
+grant execute on function public.redeem_invitation_code(text, text, business_type) to authenticated;

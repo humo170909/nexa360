@@ -39,6 +39,7 @@ create type business_type as enum (
 create table profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   full_name text,
+  phone text,
   avatar_url text,
   is_superadmin boolean not null default false,
   created_at timestamptz not null default now()
@@ -52,8 +53,8 @@ language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id, full_name)
-  values (new.id, new.raw_user_meta_data ->> 'full_name');
+  insert into public.profiles (id, full_name, phone)
+  values (new.id, new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'phone');
   return new;
 end;
 $$;
@@ -375,6 +376,41 @@ create table business_hours (
   unique (company_id, day_of_week)
 );
 
+-- pgcrypto trae digest(), usada por validate_invitation_code/
+-- redeem_invitation_code (policies.sql) para hashear el código.
+create extension if not exists pgcrypto with schema extensions;
+
+-- ------------------------------------------------------------
+-- 20. invitations — códigos de invitación para registro controlado
+--     (Fase 22). Sin esto, "companies_insert_authenticated" dejaría
+--     crear una empresa a cualquier persona autenticada; ver
+--     database/migration_invitations.sql para las funciones
+--     validate_invitation_code/redeem_invitation_code que reemplazan
+--     esa política, y policies.sql para su RLS.
+-- ------------------------------------------------------------
+create table invitations (
+  id uuid primary key default gen_random_uuid(),
+  code_hash text not null unique,
+  created_by uuid references profiles (id),
+  max_uses integer not null default 1 check (max_uses > 0),
+  used_count integer not null default 0 check (used_count >= 0),
+  expires_at timestamptz not null,
+  is_active boolean not null default true,
+  company_id uuid references companies (id) on delete set null,
+  notes text,
+  created_at timestamptz not null default now()
+);
+
+-- ------------------------------------------------------------
+-- 21. invitation_attempts — protección simple contra fuerza bruta de
+--     validate_invitation_code (cuenta intentos fallidos por IP).
+-- ------------------------------------------------------------
+create table invitation_attempts (
+  id uuid primary key default gen_random_uuid(),
+  ip_address text,
+  attempted_at timestamptz not null default now()
+);
+
 -- ------------------------------------------------------------
 -- Índices — filtrar por company_id es la operación más frecuente
 -- de toda la app; esto la mantiene rápida aunque crezcan los datos.
@@ -408,3 +444,5 @@ create index idx_enrollments_company on enrollments (company_id);
 create index idx_enrollments_student on enrollments (student_id);
 create index idx_enrollments_course on enrollments (course_id);
 create index idx_business_hours_company on business_hours (company_id);
+create index idx_invitations_company on invitations (company_id);
+create index idx_invitation_attempts_ip_time on invitation_attempts (ip_address, attempted_at);

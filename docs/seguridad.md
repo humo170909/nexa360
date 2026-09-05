@@ -30,10 +30,11 @@ Cada tabla operativa tiene RLS habilitado en `database/policies.sql`. Resumen:
 | Tabla | SELECT | INSERT | UPDATE | DELETE |
 |---|---|---|---|---|
 | `profiles` | Propio usuario o SUPERADMIN | Propio usuario | Propio usuario o SUPERADMIN | Solo SUPERADMIN |
-| `companies` | Miembros o SUPERADMIN | Cualquier autenticado | ADMIN o SUPERADMIN | Solo SUPERADMIN |
+| `companies` | Miembros o SUPERADMIN | **Nadie directamente** (Fase 22: solo vía `redeem_invitation_code()`, que exige un código de invitación válido) | ADMIN o SUPERADMIN | Solo SUPERADMIN |
 | `company_users` | Miembros o SUPERADMIN | ADMIN o SUPERADMIN | ADMIN o SUPERADMIN | ADMIN o SUPERADMIN |
 | `clients` / `services` / `appointments` / `reminders` | Miembros | Miembros | Miembros | Solo ADMIN |
 | `audit_logs` | ADMIN o SUPERADMIN | Miembros (o SUPERADMIN si `company_id` es nulo) | **Nadie** (inmutable) | Solo SUPERADMIN |
+| `invitations` / `invitation_attempts` | Solo SUPERADMIN | Solo SUPERADMIN (`invitation_attempts`: nadie directamente, solo la función) | Solo SUPERADMIN | **Nadie** (se desactivan, no se borran) |
 
 Detalle completo y explicación de cada decisión en `docs/supabase.md`.
 
@@ -45,6 +46,43 @@ clientes registra su acción vía `logAction()` en
 `src/services/auditLogs.ts`) — la Fase 15 construye la pantalla para
 ver/filtrar ese historial, no genera los registros (eso ya está resuelto
 módulo por módulo, a medida que se construyen).
+
+## Registro controlado por invitación (Fase 22)
+
+Antes de esta fase, cualquier persona autenticada podía crear una empresa
+(`companies_insert_authenticated` con `auth.uid() is not null`, sin más
+condición). Se eliminó esa política — ahora crear una empresa exige un
+código de invitación válido, verificado y canjeado por dos funciones de
+Postgres (`validate_invitation_code`, `redeem_invitation_code` en
+`database/policies.sql`), no por el frontend.
+
+Decisiones de seguridad relevantes:
+
+- **El código nunca se guarda en texto plano** — se guarda `code_hash`
+  (SHA-256). No es el mismo caso que una contraseña (hash lento tipo
+  bcrypt): un código de invitación es aleatorio de alta entropía
+  (generado con `crypto.getRandomValues()`, nunca `Math.random()`), no
+  hay diccionario de códigos comunes que un atacante pueda probar, así
+  que un hash rápido ya es suficiente.
+- **El código en texto plano nunca viaja a Supabase al generarlo** — se
+  genera y se hashea en el navegador del SUPERADMIN
+  (`src/services/invitations.ts`); solo el hash se manda a insertar.
+- **Validar y canjear son operaciones distintas** con su propia función
+  cada una: `validate_invitation_code` (Paso 1, sin sesión, rol `anon`)
+  solo lee; `redeem_invitation_code` (después de `signUp()`, con sesión)
+  vuelve a validar todo y usa `select ... for update` para evitar que dos
+  personas canjeen el mismo código de un solo uso al mismo tiempo
+  (condición de carrera).
+- **Protección básica contra fuerza bruta**: `validate_invitation_code`
+  cuenta intentos fallidos por IP (tabla `invitation_attempts`) usando
+  los headers que Supabase ya expone a cualquier función — sin Edge
+  Function ni servicio externo. Es una primera capa razonable, no
+  antiabuso perfecta (ver `MANUAL-DESARROLLADOR.md`, Fase 22, para las
+  limitaciones honestas de este enfoque).
+- **Panel SUPERADMIN** (`/superadmin/*`) protegido en dos capas: la ruta
+  del frontend (`SuperAdminRoute` en `App.tsx`, solo evita mostrar una
+  pantalla inútil) y RLS (`is_superadmin()`, la protección real —
+  aunque alguien fuerce la URL, Postgres deniega el acceso a los datos).
 
 ## Variables de entorno
 

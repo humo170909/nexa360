@@ -1,33 +1,9 @@
 import { supabase } from "../lib/supabaseClient";
-import type { BusinessType, Company, CompanyRole } from "../types/company";
+import type { Company, CompanyRole } from "../types/company";
 
-// El trigger "handle_new_company" (database/schema.sql) convierte
-// automáticamente a "ownerId" en ADMIN de la empresa recién creada — no
-// hay que insertar company_users manualmente aquí.
-export async function createCompany(
-  name: string,
-  businessType: BusinessType,
-  ownerId: string,
-): Promise<{ data: Company | null; error: string | null }> {
-  const { data, error } = await supabase
-    .from("companies")
-    .insert({ name, business_type: businessType, owner_id: ownerId })
-    .select()
-    .single();
-
-  if (error) {
-    // Log completo (código, mensaje, detalle, pista) para poder depurar
-    // sin tener que ir a buscar el cuerpo de la respuesta en Network.
-    console.error("[createCompany error]", {
-      code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-    });
-  }
-
-  return { data: data as Company | null, error: error?.message ?? null };
-}
+// Fase 22: ya no existe un "createCompany" de autoservicio — una empresa
+// solo puede nacer dentro de redeem_invitation_code() (database/policies.sql),
+// que exige un código de invitación válido. Ver src/services/invitations.ts.
 
 export interface CompanyMembership {
   company: Company;

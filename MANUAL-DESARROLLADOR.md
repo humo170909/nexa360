@@ -883,3 +883,162 @@ Resend, secretos, `supabase functions deploy`) — hasta que eso pase,
 los recordatorios se siguen quedando en "Pendiente" para siempre.
 WhatsApp/SMS siguen mostrando "Próximamente" a propósito. También queda
 pendiente el deploy a Vercel.
+
+---
+
+## Fase 22 — Registro controlado por invitación
+
+### Qué se hizo
+
+Hasta ahora, cualquier persona podía entrar a "Crear cuenta" y terminar
+con su propia empresa dentro de NEXA360 — el registro estaba
+completamente abierto. Esta fase lo cierra por completo: ahora hace
+falta un código de invitación válido, generado por un SUPERADMIN, para
+poder crear una cuenta nueva.
+
+**El cambio más importante no es una pantalla, es una política de base
+de datos que se eliminó.** `companies_insert_authenticated` decía
+literalmente "cualquier usuario logueado puede crear una empresa" — se
+borró, y no se reemplazó por nada. Sin ninguna política permisiva de
+`insert` sobre `companies`, Postgres deniega esa operación por defecto
+para cualquier rol normal. La única puerta que queda abierta es la
+función `redeem_invitation_code()`, que corre con privilegios elevados
+(`SECURITY DEFINER`) y exige haber verificado un código antes de hacer
+ese insert. Esto es "seguro por diseño": no depende de que el frontend
+se acuerde de chequear el código — aunque alguien llame a la API de
+Supabase directamente con Postman, sin pasar por React, la base de
+datos igual rechaza la creación de una empresa sin invitación.
+
+### El flujo completo
+
+```
+SUPERADMIN → genera código (se guarda solo su hash, SHA-256)
+   → entrega el código en texto plano al cliente (una sola vez, nunca
+     más se puede volver a ver — ni el propio SUPERADMIN)
+Cliente → Paso 1: pega el código → validate_invitation_code() (RPC,
+     sin sesión todavía) confirma que existe/activo/no expiró/no gastado
+   → Paso 2: nombre de empresa + tipo de negocio
+   → Paso 3: nombre, correo, teléfono, contraseña → signUp() crea la
+     cuenta en Supabase Auth
+   → redeem_invitation_code() (RPC, YA con sesión) vuelve a validar todo
+     (pudieron pasar minutos) y esta vez SÍ crea la empresa, marca el
+     código usado, y el trigger handle_new_company (Fase 5) ya existente
+     te deja como ADMIN de esa empresa
+   → Dashboard
+```
+
+### Por qué dos funciones y no una
+
+`validate_invitation_code` se llama en el Paso 1, **antes de que exista
+sesión** (rol `anon` de Supabase) — solo para darle feedback inmediato
+al usuario ("✓ Código válido") sin comprometerse a nada todavía. Nunca
+modifica datos.
+
+`redeem_invitation_code` se llama al final, **con sesión ya creada**
+(necesita `auth.uid()` para saber a quién hacer ADMIN). Vuelve a
+validar el código desde cero — no confía en que el resultado del Paso 1
+siga vigente, porque entre medio pudo pasar cualquier cosa (el código
+expiró, alguien más lo usó). Usa `select ... for update` para bloquear
+la fila del código mientras dura la operación: si dos personas envían
+el mismo código de un solo uso al mismo milisegundo, la segunda espera
+a que la primera termine, y para cuando le toca, `used_count` ya está
+al máximo — la rechaza limpiamente en vez de dejar pasar a las dos.
+
+### Cómo se guarda el código (y por qué no es como una contraseña)
+
+Se guarda `code_hash` (SHA-256), nunca el código en texto plano. La
+diferencia con hashear una contraseña: una contraseña la elige un
+humano (baja entropía — `123456`, nombres, fechas), por eso se usan
+hashes **lentos** a propósito (bcrypt, argon2), para que probar millones
+de combinaciones sea costoso. Un código de invitación
+(`NX-7K4P-92LM`) lo genera la máquina con `crypto.getRandomValues()` —
+alta entropía, no hay "diccionario de códigos típicos" que probar — así
+que un hash rápido como SHA-256 ya es suficiente. Usar bcrypt acá sería
+complejidad sin ningún beneficio real.
+
+El código en texto plano **nunca llega a viajar por la red hacia
+Supabase**: se genera y se hashea en el propio navegador del SUPERADMIN
+(`src/services/invitations.ts`), y solo el hash se manda a guardar. El
+código se muestra una única vez, en el modal de generación — ni
+siquiera el SUPERADMIN puede volver a verlo después (por diseño: la
+tabla `invitations` en la interfaz muestra "•••• (oculto)" para
+cualquier código ya generado).
+
+### Protección contra fuerza bruta — honesta sobre sus límites
+
+`validate_invitation_code` cuenta cuántos intentos fallidos hubo desde
+la misma IP en los últimos 15 minutos (tabla `invitation_attempts`) y
+corta en 10. La IP sale de los headers que Supabase ya le pasa a
+cualquier función de Postgres — no hace falta una Edge Function aparte
+para esto. **Limitación real**: varias personas detrás de la misma IP
+compartida (oficina, wifi público) comparten el mismo contador, y
+alguien con muchas IPs distintas puede evadirlo. Es una primera capa
+razonable para esta etapa del proyecto, no una solución de nivel
+empresarial — si más adelante hay abuso real, ahí se justifica algo más
+(captcha, límites de Supabase Auth, Cloudflare).
+
+### Qué pasa si el email de confirmación está activado
+
+Si tu proyecto de Supabase tiene "Confirmar email" activado en Auth,
+`signUp()` no entrega sesión hasta que el usuario confirma su correo —
+y sin sesión, `redeem_invitation_code` no puede ejecutarse todavía
+(`auth.uid()` sería `null`). Para no perder el registro a mitad de
+camino, `RegisterPage.tsx` guarda el código + nombre de empresa + tipo
+de negocio en `localStorage` (dato no sensible, no es una contraseña)
+y `useCompany.tsx` lo detecta y termina el canje automáticamente en el
+primer login, sin que el usuario tenga que volver a escribir nada.
+
+### Archivos
+
+| Archivo | Propósito |
+|---|---|
+| `database/migration_invitations.sql` | **Nuevo.** Tablas `invitations`/`invitation_attempts`, elimina `companies_insert_authenticated`, crea `validate_invitation_code`/`redeem_invitation_code`, agrega `profiles.phone` |
+| `database/schema.sql`, `database/policies.sql` | Reflejan lo mismo para instalaciones nuevas |
+| `src/types/invitation.ts`, `src/services/invitations.ts` | **Nuevos.** Generación/hash del código en el navegador, CRUD de invitaciones, wrappers de las 2 funciones RPC, manejo de la redención pendiente |
+| `src/pages/auth/RegisterPage.tsx` | Reescrito como wizard de 4 pasos (código → empresa → administrador → confirmación) |
+| `src/pages/onboarding/NoCompanyPage.tsx` | **Nuevo**, reemplaza a `SelectBusinessTypePage.tsx` (eliminado) — pantalla de recuperación, no de autoservicio |
+| `src/hooks/useCompany.tsx` | +lógica para completar una redención pendiente en el primer login |
+| `src/hooks/useIsSuperAdmin.ts` | **Nuevo.** Guardia para las rutas `/superadmin/*` |
+| `src/pages/superadmin/*` | **Nuevo.** Panel completo: `SuperAdminLayout`, `SuperAdminDashboardPage`, `CompaniesPage`, `PlatformUsersPage`, `InvitationsPage` + `GenerateInvitationModal` (todos reales), `AuditPage` (real, vista global de `audit_logs`), `PlansPage`/`ModulesPage`/`ActivityPage`/`SuperAdminSettingsPage` (placeholders honestos — explican en su propio código por qué no son reales todavía) |
+| `src/services/superadmin.ts` | **Nuevo.** `listAllCompanies` (con conteo de usuarios), `listAllProfiles` |
+| `src/services/auditLogs.ts` | +`listAllAuditLogs` (vista global, sin filtrar por empresa) |
+| `src/services/companies.ts` | Se eliminó `createCompany` (ya no existe la creación de autoservicio) |
+| `src/App.tsx` | Rutas `/superadmin/*` con su propio layout; `/onboarding` ahora usa `NoCompanyPage` |
+| `docs/seguridad.md` | Tabla de RLS actualizada + nueva sección explicando esta fase |
+
+### Cómo probarlo
+
+1. Corre `database/migration_invitations.sql` en el SQL Editor de Supabase.
+2. Convierte tu propio usuario en SUPERADMIN (una sola vez, a mano):
+   ```sql
+   update profiles set is_superadmin = true where id = 'tu-user-id';
+   ```
+   (tu `user-id` lo ves en Supabase → Authentication → Users).
+3. Entra a NEXA360, ve a `/superadmin` (o el link "Volver a mi empresa"
+   al revés — como SUPERADMIN puedes navegar a esa URL directamente).
+4. En "Invitaciones", genera un código — cópialo, es tu única
+   oportunidad de verlo en texto plano.
+5. Abre una ventana de incógnito (para no mezclar tu sesión de
+   SUPERADMIN), ve a `/register`, pega el código, y completa el wizard
+   de 4 pasos con datos de una empresa nueva.
+6. Vuelve a "Invitaciones" con tu sesión de SUPERADMIN: el código debe
+   aparecer como "Usado" (1/1), con el nombre de la empresa recién
+   creada en la columna correspondiente.
+7. Intenta registrarte de nuevo con el mismo código — debe rechazarlo
+   con "Este código ya fue utilizado."
+
+### Qué deberías aprender
+
+- **Eliminar una política puede ser la corrección de seguridad más
+  importante de todas** — a veces "arreglar" algo es quitar el permiso
+  que sobraba, no agregar más código encima.
+- **Validar dos veces (Paso 1 y en el canje final) no es duplicar
+  trabajo por descuido** — es la diferencia entre "verificar" (dar
+  feedback rápido al usuario) y "autorizar" (la decisión que de verdad
+  importa, tomada en el último momento posible, sobre el estado más
+  actual de los datos). Es un patrón general en seguridad: time-of-check
+  distinto de time-of-use, y confiar solo en el primero es un error
+  común.
+- **No todo hash es igual** — la elección entre un hash rápido (SHA-256)
+  y uno lento (bcrypt) depende de la entropía de lo que estás
+  protegiendo, no es "siempre usa el más seguro posible".
