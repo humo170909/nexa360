@@ -1073,3 +1073,66 @@ ajuste adicional que vale la pena que entiendas:
   registrado, todavía sin empresa, ahora puede registrar SU PROPIO
   evento. Esto no afecta quién puede **leer** logs (esa política no
   cambió), solo abre una puerta de escritura muy angosta y específica.
+
+---
+
+## Fase 23 — Arreglar a dónde va un SUPERADMIN después de iniciar sesión
+
+### Qué se hizo
+
+Bug real, no percepción: `LoginPage.tsx` mandaba a **todo el mundo** a
+`/dashboard` después de iniciar sesión, sin mirar el rol. Un SUPERADMIN
+no tiene empresa (por diseño, desde la Fase 22) — así que `ProtectedRoute`
+lo interceptaba antes de llegar a `/dashboard` y lo mandaba a
+`/onboarding`, que ahora es `NoCompanyPage` ("tu cuenta no tiene una
+empresa asociada, contacta al administrador que te invitó"). Un
+SUPERADMIN real leyendo ese mensaje sobre sí mismo es exactamente el
+síntoma que reportaste.
+
+El arreglo tenía que hacerse en 3 lugares, no solo en el Login — porque
+hay 3 formas distintas de "llegar" a la app ya logueado:
+
+1. **Login** (`LoginPage.tsx`): después de `signIn()`, consulta
+   `profiles.is_superadmin` y navega a `/superadmin` o `/dashboard`
+   según corresponda — no asume nada guardado en `localStorage`.
+2. **Refrescar la página / pegar una URL estando ya logueado**
+   (`ProtectedRoute` en `App.tsx`): si no hay empresa, ahora mira si es
+   SUPERADMIN antes de decidir a dónde mandarlo (`/superadmin` en vez
+   de `/onboarding`).
+3. **Entrar a `/login` ya con sesión activa** (`PublicOnlyRoute`): antes
+   redirigía siempre a `/dashboard`; ahora también consulta el rol.
+
+`OnboardingRoute` (la que protege `NoCompanyPage`) también se ajustó:
+si un SUPERADMIN de alguna forma llega ahí, lo saca hacia `/superadmin`
+en vez de mostrarle el mensaje de "registro incompleto", que no aplica
+a su caso.
+
+### Archivos
+
+| Archivo | Propósito |
+|---|---|
+| `src/pages/auth/LoginPage.tsx` | Consulta `is_superadmin` después de `signIn()` y navega según corresponda |
+| `src/App.tsx` | `ProtectedRoute`, `OnboardingRoute` y `PublicOnlyRoute` ahora usan `useIsSuperAdmin()` para decidir el destino cuando no hay empresa |
+
+### Cómo probarlo
+
+1. Inicia sesión con tu cuenta SUPERADMIN — debe llevarte directo a
+   `/superadmin`, no a una pantalla de "no tienes empresa".
+2. Estando ahí, refresca la página (F5) — debe quedarte en
+   `/superadmin`, no rebotarte a ningún lado.
+3. Cierra sesión y vuelve a `/login` manualmente mientras aún tuvieras
+   una sesión activa en otra pestaña — también debe respetar el rol.
+4. Con una cuenta normal (ADMIN de una empresa), confirma que sigue
+   entrando a `/dashboard` como siempre — este cambio no le afecta.
+
+### Qué deberías aprender
+
+El bug no estaba en un solo lugar porque **hay más de una puerta de
+entrada a una app autenticada** — no solo el formulario de Login. Cada
+guardia de ruta (`ProtectedRoute`, `OnboardingRoute`, `PublicOnlyRoute`)
+toma su propia decisión de a dónde mandar a alguien, así que arreglar
+solo el Login habría dejado el bug vivo en cuanto alguien refrescara la
+página. Es la misma lección de "validar en un solo lugar no alcanza"
+que ya vimos en la Fase 22 con `validate_invitation_code` vs.
+`redeem_invitation_code`, aplicada ahora a navegación en vez de a
+seguridad de datos.

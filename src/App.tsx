@@ -42,34 +42,43 @@ import { AuditPage } from "./pages/superadmin/AuditPage";
 import { SuperAdminSettingsPage } from "./pages/superadmin/SuperAdminSettingsPage";
 
 // Requiere sesión. Si el usuario aún no tiene empresa, lo manda a la
-// pantalla de recuperación (Fase 22: crear una empresa ya no es de
-// autoservicio, solo pasa dentro de redeem_invitation_code).
+// pantalla de recuperación — EXCEPTO si es SUPERADMIN, en cuyo caso no
+// tener empresa es lo normal (por diseño) y su lugar es /superadmin, no
+// una pantalla de "registro incompleto" (Fase 23, corrige ese bug).
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { session, loading: authLoading } = useAuth();
   const { company, loading: companyLoading } = useCompany();
+  const { isSuperAdmin, loading: superAdminLoading } = useIsSuperAdmin();
 
-  if (authLoading || (session && companyLoading)) return null;
+  if (authLoading || (session && (companyLoading || superAdminLoading))) return null;
   if (!session) return <Navigate to="/login" replace />;
-  if (!company) return <Navigate to="/onboarding" replace />;
+  if (!company) {
+    return <Navigate to={isSuperAdmin ? "/superadmin" : "/onboarding"} replace />;
+  }
   return <>{children}</>;
 }
 
 // Requiere sesión pero SIN empresa todavía (pantalla de recuperación,
-// no de autoservicio — ver NoCompanyPage).
+// no de autoservicio — ver NoCompanyPage). Un SUPERADMIN nunca debería
+// quedarse acá: no tener empresa es su estado normal, no un error.
 function OnboardingRoute({ children }: { children: ReactNode }) {
   const { session, loading: authLoading } = useAuth();
   const { company, loading: companyLoading } = useCompany();
+  const { isSuperAdmin, loading: superAdminLoading } = useIsSuperAdmin();
 
-  if (authLoading || (session && companyLoading)) return null;
+  if (authLoading || (session && (companyLoading || superAdminLoading))) return null;
   if (!session) return <Navigate to="/login" replace />;
   if (company) return <Navigate to="/dashboard" replace />;
+  if (isSuperAdmin) return <Navigate to="/superadmin" replace />;
   return <>{children}</>;
 }
 
 function PublicOnlyRoute({ children }: { children: ReactNode }) {
-  const { session, loading } = useAuth();
-  if (loading) return null;
-  if (session) return <Navigate to="/dashboard" replace />;
+  const { session, loading: authLoading } = useAuth();
+  const { isSuperAdmin, loading: superAdminLoading } = useIsSuperAdmin();
+
+  if (authLoading || (session && superAdminLoading)) return null;
+  if (session) return <Navigate to={isSuperAdmin ? "/superadmin" : "/dashboard"} replace />;
   return <>{children}</>;
 }
 

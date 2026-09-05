@@ -4,6 +4,7 @@ import { AuthLayout } from "../../layouts/AuthLayout";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { useAuth } from "../../hooks/useAuth";
+import { supabase } from "../../lib/supabaseClient";
 
 export function LoginPage() {
   const { signIn } = useAuth();
@@ -20,12 +21,29 @@ export function LoginPage() {
     setError(null);
     setLoading(true);
     const { error } = await signIn(email, password);
-    setLoading(false);
+
     if (error) {
+      setLoading(false);
       setError(error);
       return;
     }
-    navigate("/dashboard");
+
+    // A dónde va cada quien depende de is_superadmin, no de una
+    // suposición fija — un SUPERADMIN no tiene empresa (a propósito), así
+    // que mandarlo siempre a /dashboard lo dejaba varado en la pantalla
+    // de "no tienes empresa asociada". Se consulta acá mismo (no se
+    // confía en nada guardado en localStorage) para decidir la ruta.
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_superadmin")
+      .eq("id", user?.id ?? "")
+      .single();
+
+    setLoading(false);
+    navigate(profile?.is_superadmin ? "/superadmin" : "/dashboard");
   }
 
   return (
