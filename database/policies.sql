@@ -32,6 +32,12 @@ as $$
   );
 $$;
 
+-- Fase 24: se agregó el join a "companies" y "c.is_active" — sin esto,
+-- "Suspender" en el panel SUPERADMIN solo cambiaba una etiqueta visual;
+-- los usuarios de la empresa suspendida seguían pudiendo leer/escribir
+-- todo con normalidad. Como CASI todas las tablas del proyecto usan esta
+-- función para su RLS, este único cambio corta el acceso en todos lados
+-- a la vez — no hace falta tocar tabla por tabla.
 create or replace function public.is_company_member(target_company_id uuid)
 returns boolean
 language sql
@@ -40,9 +46,11 @@ set search_path = public
 stable
 as $$
   select exists (
-    select 1 from company_users
-    where company_id = target_company_id
-      and user_id = auth.uid()
+    select 1 from company_users cu
+    join companies c on c.id = cu.company_id
+    where cu.company_id = target_company_id
+      and cu.user_id = auth.uid()
+      and c.is_active = true
   );
 $$;
 
@@ -54,10 +62,12 @@ set search_path = public
 stable
 as $$
   select exists (
-    select 1 from company_users
-    where company_id = target_company_id
-      and user_id = auth.uid()
-      and role = 'ADMIN'
+    select 1 from company_users cu
+    join companies c on c.id = cu.company_id
+    where cu.company_id = target_company_id
+      and cu.user_id = auth.uid()
+      and cu.role = 'ADMIN'
+      and c.is_active = true
   );
 $$;
 
@@ -240,11 +250,16 @@ create policy "audit_logs_select_admin_or_superadmin"
 -- su propio evento antes de tener empresa (ej. "registration.failed" si
 -- el canje de una invitación falla después del registro). Sigue sin
 -- dejar que nadie lea logs ajenos: la política de SELECT no cambió.
+-- Fase 24: se agregó "or (company_id is not null and is_superadmin())"
+-- — un SUPERADMIN suspende empresas de las que NO es miembro, así que
+-- "is_company_member(company_id)" da falso para él y sin esta cláusula
+-- el log de "company.suspended"/"company.activated" se rechazaría.
 drop policy if exists "audit_logs_insert_members_or_superadmin" on audit_logs;
 create policy "audit_logs_insert_members_or_superadmin"
   on audit_logs for insert
   with check (
     (company_id is not null and is_company_member(company_id))
+    or (company_id is not null and is_superadmin())
     or (company_id is null and is_superadmin())
     or (company_id is null and user_id = auth.uid())
   );

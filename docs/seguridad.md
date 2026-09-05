@@ -35,7 +35,7 @@ Cada tabla operativa tiene RLS habilitado en `database/policies.sql`. Resumen:
 | `clients` / `services` / `appointments` / `reminders` | Miembros | Miembros | Miembros | Solo ADMIN |
 | `audit_logs` | ADMIN o SUPERADMIN | Miembros (o SUPERADMIN si `company_id` es nulo) | **Nadie** (inmutable) | Solo SUPERADMIN |
 | `invitations` / `invitation_attempts` | Solo SUPERADMIN | Solo SUPERADMIN (`invitation_attempts`: nadie directamente, solo la función) | Solo SUPERADMIN | **Nadie** (se desactivan, no se borran) |
-| `audit_logs` (ampliado, Fase 22) | — (sin cambios) | + `company_id` nulo y `user_id = auth.uid()` — un usuario recién registrado, todavía sin empresa, puede registrar su propio evento (ej. `registration.failed`) | — | — |
+| `audit_logs` (ampliado, Fase 22/24) | — (sin cambios) | + `company_id` nulo y `user_id = auth.uid()` (usuario recién registrado sin empresa, ej. `registration.failed`); + `company_id` no nulo y SUPERADMIN (ej. `company.suspended` sobre una empresa de la que no es miembro) | — | — |
 
 Detalle completo y explicación de cada decisión en `docs/supabase.md`.
 
@@ -84,6 +84,26 @@ Decisiones de seguridad relevantes:
   del frontend (`SuperAdminRoute` en `App.tsx`, solo evita mostrar una
   pantalla inútil) y RLS (`is_superadmin()`, la protección real —
   aunque alguien fuerce la URL, Postgres deniega el acceso a los datos).
+
+## Suspender una empresa (Fase 24)
+
+`companies.is_active` existía desde la Fase 5 pero no lo revisaba nada —
+un SUPERADMIN podía "suspender" una empresa desde el panel y sus
+usuarios seguían con acceso normal. Se corrigió modificando
+`is_company_member()`/`is_company_admin()` (`database/policies.sql`)
+para exigir también `companies.is_active = true`. Como casi todas las
+políticas RLS del proyecto (clientes, citas, servicios, recordatorios,
+mascotas, vehículos, etc.) dependen de esas dos funciones, este único
+cambio corta el acceso en todas las tablas a la vez — no hizo falta
+tocar política por política.
+
+**Limitación conocida**: un usuario de una empresa suspendida ve el
+mismo mensaje genérico de "tu cuenta no tiene una empresa asociada"
+(`NoCompanyPage.tsx`) que alguien cuyo registro nunca se completó — no
+hay todavía un mensaje distinto para "tu empresa fue suspendida". Es
+una simplificación consciente: el bloqueo de acceso (lo que de verdad
+importa en seguridad) ya es real; el mensaje más específico es una
+mejora de UX pendiente, no un hueco de seguridad.
 
 ## Variables de entorno
 

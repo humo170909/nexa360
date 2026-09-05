@@ -1136,3 +1136,74 @@ página. Es la misma lección de "validar en un solo lugar no alcanza"
 que ya vimos en la Fase 22 con `validate_invitation_code` vs.
 `redeem_invitation_code`, aplicada ahora a navegación en vez de a
 seguridad de datos.
+
+---
+
+## Fase 24 — Suspender/Activar empresas de verdad
+
+### Qué se hizo
+
+Decidiste mantener "USUARIO" (no renombrar a "COLABORADOR") y mantener
+`company_users` separado de `profiles` — ambas decisiones confirmadas,
+sin cambios de esquema por esos dos puntos.
+
+Se agregó "Administrador" al panel de Empresas y un botón
+Suspender/Activar real — no solo un cambio de etiqueta. La parte
+importante no es el botón: es que `companies.is_active` existía desde
+la Fase 5 pero **nada lo revisaba**. Antes de esta fase, suspender una
+empresa era pura decoración — sus usuarios seguían con acceso normal a
+todo.
+
+### Cómo se corrigió (el cambio real está en 2 funciones, no en 20 tablas)
+
+`is_company_member()` e `is_company_admin()` — las dos funciones que
+prácticamente TODAS las políticas RLS del proyecto usan (clientes,
+citas, servicios, recordatorios, mascotas, vehículos, matrículas...) —
+ahora exigen también `companies.is_active = true`. Un solo cambio, en
+un solo lugar, corta el acceso en todas las tablas del proyecto a la
+vez. La alternativa hubiera sido agregar `and company.is_active` a cada
+política de cada tabla una por una — lo mismo, pero copiado 40 veces
+con 40 oportunidades de olvidarse en alguna.
+
+También hizo falta ampliar la política de `insert` de `audit_logs`:
+un SUPERADMIN suspende empresas de las que normalmente NO es miembro
+(`is_company_member()` da falso para él), así que sin agregar
+`company_id is not null and is_superadmin()` a esa política, el propio
+log de "se suspendió esta empresa" se hubiera rechazado por RLS.
+
+### Archivos
+
+| Archivo | Propósito |
+|---|---|
+| `database/migration_company_suspension.sql` | **Nuevo.** Redefine `is_company_member`/`is_company_admin` con el chequeo de `is_active`, y amplía la política de insert de `audit_logs` |
+| `database/policies.sql` | Refleja lo mismo para instalaciones nuevas |
+| `src/services/superadmin.ts` | +`updateCompanyStatus`, `listAllCompanies` ahora también trae el nombre del administrador (`owner_name`, join contra `profiles`) |
+| `src/pages/superadmin/CompaniesPage.tsx` | +columna "Administrador", +botón Suspender/Activar con confirmación y auditoría |
+
+### Cómo probarlo
+
+1. Corre `database/migration_company_suspension.sql` en el SQL Editor.
+2. Desde `/superadmin/companies`, suspende una empresa de prueba.
+3. Con una cuenta ADMIN/USUARIO de ESA empresa (en otra pestaña o
+   incógnito), intenta entrar o refrescar — debería caer en la pantalla
+   de "tu cuenta no tiene una empresa asociada" (ver limitación conocida
+   más abajo).
+4. Vuelve a activarla desde el panel — la misma cuenta debería recuperar
+   acceso normal sin tener que cerrar sesión.
+
+### Qué deberías aprender
+
+- **Un dato que existe en la base de datos no significa que esté
+  "implementado"** — `is_active` llevaba desde la Fase 5 sin que ninguna
+  política lo mirara. Es fácil, revisando solo el esquema, asumir que
+  algo funciona porque la columna está ahí.
+- **Arreglar en el punto de mayor apalancamiento**: cuando muchas
+  políticas comparten una función auxiliar, corregir la función corrige
+  todas las políticas a la vez. Vale la pena identificar esos puntos
+  centrales antes de salir a parchear tabla por tabla.
+- **Limitación honesta documentada, no escondida**: un usuario de una
+  empresa suspendida ve el mismo mensaje que alguien sin empresa nunca
+  asociada — no es ideal para la experiencia, pero el bloqueo de acceso
+  (lo que de verdad importa) ya es real. Se documentó en
+  `docs/seguridad.md` en vez de dejarlo como una sorpresa para descubrir
+  después.
