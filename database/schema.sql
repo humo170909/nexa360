@@ -412,6 +412,30 @@ create table invitation_attempts (
 );
 
 -- ------------------------------------------------------------
+-- 22. user_invitations — invitar usuarios a una empresa YA existente
+--     (Fase 25). NO confundir con "invitations" (Fase 22, SUPERADMIN
+--     crea una empresa nueva) — acá el ADMIN de una empresa invita a
+--     alguien a SU empresa, con un rol específico. Ver
+--     database/migration_user_invitations.sql si tu proyecto ya existía
+--     antes de esta tabla.
+-- ------------------------------------------------------------
+create table user_invitations (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies (id) on delete cascade,
+  token_hash text not null unique,
+  invited_email text not null,
+  invited_name text,
+  role text not null check (role in ('ADMIN', 'USUARIO')),
+  status text not null default 'pendiente'
+    check (status in ('pendiente', 'aceptada', 'expirada', 'cancelada')),
+  invited_by uuid references profiles (id),
+  expires_at timestamptz not null,
+  accepted_by uuid references profiles (id),
+  accepted_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+-- ------------------------------------------------------------
 -- Índices — filtrar por company_id es la operación más frecuente
 -- de toda la app; esto la mantiene rápida aunque crezcan los datos.
 -- ------------------------------------------------------------
@@ -446,3 +470,4 @@ create index idx_enrollments_course on enrollments (course_id);
 create index idx_business_hours_company on business_hours (company_id);
 create index idx_invitations_company on invitations (company_id);
 create index idx_invitation_attempts_ip_time on invitation_attempts (ip_address, attempted_at);
+create index idx_user_invitations_company on user_invitations (company_id);

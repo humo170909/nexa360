@@ -1207,3 +1207,107 @@ log de "se suspendió esta empresa" se hubiera rechazado por RLS.
   (lo que de verdad importa) ya es real. Se documentó en
   `docs/seguridad.md` en vez de dejarlo como una sorpresa para descubrir
   después.
+
+---
+
+## Fase 25 — Invitar usuarios a una empresa (tipo B, distinta de la Fase 22)
+
+### Qué se hizo
+
+La invitación tipo A (Fase 22) la genera un SUPERADMIN y crea una
+**empresa nueva**. Esta es la tipo B: el ADMIN de una empresa YA
+existente invita a alguien puntual (nombre, correo, rol) a **su**
+empresa. Flujos, tablas y funciones completamente separados a
+propósito — tu propio pedido lo remarcaba (sección 14: "no confundir
+ambos procesos").
+
+Antes de programar, te expliqué por qué el token se guarda hasheado
+(mismo criterio que los códigos de empresa: alta entropía generada por
+la máquina, no hace falta un hash lento tipo bcrypt) y por qué este
+token es más largo y no "legible" — va dentro de un link que se hace
+clic, no un código que se escribe a mano.
+
+### El flujo completo
+
+```
+ADMIN de "Clínica Sonrisa" → Configuración → Usuarios → "Invitar usuario"
+   → nombre + correo + rol → se genera un token, se hashea en el
+     navegador, se guarda el hash → se muestra un LINK completo una
+     sola vez (no hay envío de correo real conectado todavía — se
+     entrega el link a mano, igual que con los códigos de empresa)
+Invitado → abre el link (/accept-invite?token=...)
+   → validate_user_invitation() confirma que es válido y muestra a qué
+     empresa y con qué rol
+   → si no tiene cuenta: la crea ahí mismo (correo fijo, no editable)
+   → si ya tiene cuenta: inicia sesión ahí mismo
+   → accept_user_invitation() compara su correo real contra el
+     invitado — si coincide, lo agrega a company_users con el rol
+     indicado
+   → Dashboard de esa empresa
+```
+
+### La protección que este tipo de invitación necesita y la otra no
+
+Un código de empresa (Fase 22) es anónimo — cualquiera con el código
+puede usarlo, sin importar quién sea. Una invitación de usuario está
+dirigida a **una persona específica**, así que hace falta una
+verificación extra: `accept_user_invitation()` lee el correo real de
+quien está aceptando desde `auth.users` (una tabla que solo una función
+`SECURITY DEFINER` puede leer — nunca el frontend) y lo compara contra
+`invited_email`. Si no coinciden, rechaza el canje. Sin esto, cualquiera
+que consiguiera el link (reenviado por error, copiado de una
+conversación) podría entrar a la empresa con el rol que sea, sin
+importar para quién era.
+
+### Por qué "Reenviar" no muestra el mismo link de nuevo
+
+El token en texto plano se pierde apenas se genera — es la misma regla
+de "se muestra una sola vez" que ya aplicamos a los códigos de empresa.
+"Reenviar" en `UsersTab.tsx` en realidad **cancela la invitación vieja y
+crea una nueva** (nuevo token, nuevos 7 días), no reenvía nada — el
+nombre del botón describe la intención del ADMIN ("quiero que esta
+persona reciba otra oportunidad"), no literalmente "repetir el mismo
+mensaje".
+
+### Archivos
+
+| Archivo | Propósito |
+|---|---|
+| `database/migration_user_invitations.sql` | **Nuevo.** Tabla `user_invitations`, RLS, `validate_user_invitation`/`accept_user_invitation` |
+| `database/schema.sql`, `database/policies.sql` | Reflejan lo mismo para instalaciones nuevas |
+| `src/types/userInvitation.ts`, `src/services/userInvitations.ts` | **Nuevos.** Generación/hash del token, CRUD, wrappers de las 2 funciones RPC, manejo de aceptación pendiente (mismo patrón que la Fase 22 para "Confirmar email" activado) |
+| `src/pages/auth/AcceptInvitePage.tsx` | **Nuevo.** Ruta pública `/accept-invite` — valida el token y deja iniciar sesión o crear cuenta ahí mismo, con el correo fijo |
+| `src/pages/settings/InviteUserModal.tsx` | **Nuevo.** Modal de "Invitar usuario", muestra el link generado una sola vez |
+| `src/pages/settings/UsersTab.tsx` | Botón "Invitar usuario" ya real (antes decía "Próximamente"), + tabla de invitaciones enviadas con Cancelar/Reenviar |
+| `src/hooks/useCompany.tsx` | +misma lógica de "completar en el primer login" que ya existía para redimir un código de empresa, ahora también para aceptar una invitación de usuario |
+| `src/App.tsx` | Ruta `/accept-invite`, sin `ProtectedRoute` ni `PublicOnlyRoute` — la página decide sola qué mostrar según haya sesión o no |
+
+### Cómo probarlo
+
+1. Corre `database/migration_user_invitations.sql` en el SQL Editor.
+2. Con tu cuenta ADMIN, ve a Configuración → Usuarios → "Invitar
+   usuario" — usa un correo que NO sea el tuyo (necesitas poder
+   registrarte con él después).
+3. Copia el link generado, ábrelo en una ventana de incógnito.
+4. Elige "Soy nuevo", crea la cuenta — debe unirte automáticamente a la
+   empresa con el rol que elegiste.
+5. Vuelve a tu sesión ADMIN: la invitación debe verse como "Aceptada" en
+   la tabla, y la nueva persona debe aparecer en la lista de usuarios de
+   arriba.
+6. Prueba también: generar una invitación y "Cancelarla" antes de que
+   nadie la use — el link ya no debería funcionar.
+
+### Qué deberías aprender
+
+- **Dos "invitaciones" que suenan parecido pueden ser conceptos
+  completamente distintos** — mismo patrón técnico de fondo (token
+  hasheado, validar-y-canjear en dos pasos), pero un propósito de
+  negocio diferente amerita tablas y funciones separadas, no forzar una
+  sola tabla a servir para dos cosas con un `if` extra.
+- **Cuándo SÍ hace falta leer `auth.users`**: normalmente nunca se toca
+  esa tabla desde el frontend (por eso `profiles` existe, para no
+  necesitarlo). Pero comparar "¿el correo de quien acepta es el correo
+  invitado?" es exactamente el tipo de chequeo que solo tiene sentido
+  hacer del lado del servidor, con una función que sí tiene permiso de
+  mirar esa tabla — y ni siquiera devuelve el correo al frontend, solo
+  un `true`/`false` disfrazado de `success`.

@@ -7,6 +7,7 @@ import { AppLayout } from "./components/layout/AppLayout";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
+import { AcceptInvitePage } from "./pages/auth/AcceptInvitePage";
 import { NoCompanyPage } from "./pages/onboarding/NoCompanyPage";
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
 import { ClientsPage } from "./pages/clients/ClientsPage";
@@ -124,6 +125,11 @@ function App() {
           </PublicOnlyRoute>
         }
       />
+      {/* Sin PublicOnlyRoute ni ProtectedRoute a propósito: la puede abrir
+          alguien sin sesión (se registra ahí mismo) o alguien que ya
+          tiene cuenta pero en otra empresa — la propia página decide qué
+          mostrar según haya sesión o no (ver AcceptInvitePage.tsx). */}
+      <Route path="/accept-invite" element={<AcceptInvitePage />} />
       <Route
         path="/onboarding"
         element={

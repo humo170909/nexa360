@@ -35,6 +35,7 @@ Cada tabla operativa tiene RLS habilitado en `database/policies.sql`. Resumen:
 | `clients` / `services` / `appointments` / `reminders` | Miembros | Miembros | Miembros | Solo ADMIN |
 | `audit_logs` | ADMIN o SUPERADMIN | Miembros (o SUPERADMIN si `company_id` es nulo) | **Nadie** (inmutable) | Solo SUPERADMIN |
 | `invitations` / `invitation_attempts` | Solo SUPERADMIN | Solo SUPERADMIN (`invitation_attempts`: nadie directamente, solo la función) | Solo SUPERADMIN | **Nadie** (se desactivan, no se borran) |
+| `user_invitations` (Fase 25) | ADMIN de esa empresa o SUPERADMIN | ADMIN de esa empresa | ADMIN de esa empresa (para cancelar; aceptar pasa por función) | **Nadie** (se cancelan, no se borran) |
 | `audit_logs` (ampliado, Fase 22/24) | — (sin cambios) | + `company_id` nulo y `user_id = auth.uid()` (usuario recién registrado sin empresa, ej. `registration.failed`); + `company_id` no nulo y SUPERADMIN (ej. `company.suspended` sobre una empresa de la que no es miembro) | — | — |
 
 Detalle completo y explicación de cada decisión en `docs/supabase.md`.
@@ -104,6 +105,22 @@ hay todavía un mensaje distinto para "tu empresa fue suspendida". Es
 una simplificación consciente: el bloqueo de acceso (lo que de verdad
 importa en seguridad) ya es real; el mensaje más específico es una
 mejora de UX pendiente, no un hueco de seguridad.
+
+## Invitar usuarios a una empresa existente (Fase 25)
+
+NO confundir con el "Registro controlado por invitación" de arriba
+(Fase 22 — SUPERADMIN autoriza la creación de una empresa NUEVA). Esta
+es distinta: el ADMIN de una empresa ya existente invita a alguien a
+SU empresa, con un rol específico (ADMIN o USUARIO).
+
+Mismo patrón de token que en la Fase 22 (aleatorio con
+`crypto.getRandomValues()`, hasheado en el navegador antes de llegar a
+Supabase, mostrado una sola vez), con una protección adicional: el
+token va dirigido a un correo específico. `accept_user_invitation()`
+compara el correo de quien acepta (leído de `auth.users`, solo posible
+desde una función `SECURITY DEFINER`, nunca desde el frontend) contra
+el correo invitado — si no coinciden, se rechaza, aunque el link
+llegara a manos de otra persona.
 
 ## Variables de entorno
 

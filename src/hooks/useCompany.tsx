@@ -13,6 +13,11 @@ import {
   clearPendingRedemption,
   redeemInvitationCode,
 } from "../services/invitations";
+import {
+  getPendingUserInvite,
+  clearPendingUserInvite,
+  acceptUserInvitation,
+} from "../services/userInvitations";
 import type { Company, CompanyRole } from "../types/company";
 
 interface CompanyContextValue {
@@ -57,6 +62,20 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
           pending.businessType,
         );
         clearPendingRedemption();
+        if (result.success) {
+          memberships = await getMyCompanies();
+        }
+      }
+    }
+
+    // Mismo caso, para el otro tipo de invitación (Fase 25): aceptar una
+    // invitación de usuario a una empresa ya existente, cuando el correo
+    // exigió confirmación antes de que hubiera sesión.
+    if (memberships.length === 0) {
+      const pendingToken = getPendingUserInvite();
+      if (pendingToken) {
+        const result = await acceptUserInvitation(pendingToken);
+        clearPendingUserInvite();
         if (result.success) {
           memberships = await getMyCompanies();
         }
