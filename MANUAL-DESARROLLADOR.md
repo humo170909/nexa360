@@ -1386,3 +1386,62 @@ auditoría no es solo "agregar una línea de log", a veces expone que la
 acción que se supone hay que auditar ni siquiera existe todavía. Vale
 la pena tratar cada evento de tu lista como una pregunta ("¿puedo
 provocar esto hoy?") antes de asumir que solo falta registrarlo.
+
+---
+
+## Fase 27 — Documentación completa de roles, empresas e invitaciones
+
+### Qué se hizo
+
+Los 6 documentos nuevos que pediste, más una actualización de fondo a
+`docs/supabase.md` (seguía diciendo "8 tablas" — ya son 22) y dos
+secciones nuevas en `docs/seguridad.md` explicando específicamente por
+qué ocultar un botón no es seguridad y por qué RLS sí lo es (con un
+ejemplo real de este mismo proyecto, no uno inventado).
+
+| Archivo | Contenido |
+|---|---|
+| `docs/roles-y-permisos.md` | Los 2 niveles de rol (plataforma vs. empresa), tabla Rol/Puede/No puede, por qué no hay más roles todavía |
+| `docs/superadmin.md` | Qué es, cómo se marca (a mano, sin botón — y por qué), a dónde entra, tabla comparativa contra ADMIN |
+| `docs/empresas.md` | Ciclo de vida de una empresa (creada → suspendida → reactivada), quién puede hacer qué |
+| `docs/invitaciones.md` | Los dos tipos de invitación lado a lado, paso a paso cada uno, con la protección extra que solo la de usuario necesita |
+| `docs/usuarios.md` | Cómo se relaciona un usuario con una empresa vía `company_users`, qué puede hacer un ADMIN sobre sus usuarios, por qué "quitar" no es "desactivar la cuenta" |
+| `docs/guia-principiante.md` | 9 pasos prácticos para probar tú mismo cada pieza — desde convertirte en SUPERADMIN hasta comprobar con las herramientas de desarrollador que Empresa A no puede ver Empresa B |
+
+### Un ajuste que hice a tu orden original
+
+Pediste "Paso 1: crear una empresa, Paso 2: crear una invitación" — pero
+desde la Fase 22, crear una empresa **requiere** una invitación primero
+(no hay autoservicio). En `guia-principiante.md` invertí el orden
+(invitación → empresa) y dejé una nota explicando por qué, en vez de
+seguir un orden que ya no coincide con cómo funciona la aplicación.
+
+### Cómo probarlo
+
+No hay nada que "correr" — son documentos. Ábrelos y sigue
+`docs/guia-principiante.md` de punta a punta con una cuenta de prueba;
+si los 9 pasos funcionan tal como están descritos, la documentación es
+precisa (y de paso, probaste toda la arquitectura de roles de una
+sentada).
+
+### Qué deberías aprender
+
+La documentación de un sistema de seguridad no es solo "qué hace cada
+botón" — la parte que más vale la pena de `docs/seguridad.md` es la
+explicación de *por qué* ocultar un botón no basta, con un ejemplo real
+tomado del propio código (`removeMember` + su política RLS), no un
+ejemplo genérico de manual. Cuando expliques seguridad a alguien más
+adelante (o te la expliques a ti mismo releyendo esto en unos meses),
+un ejemplo concreto y verificable en el código va a quedarte mucho más
+claro que la regla abstracta sola.
+
+---
+
+Con esto se completan las 12 fases del plan que acordamos para
+corregir la arquitectura de roles y acceso (Fases 23-27, más las 2
+decisiones de diseño confirmadas: mantener "USUARIO" y mantener
+`company_users` separado de `profiles`). El sistema completo —
+SUPERADMIN separado de las empresas, roles ADMIN/USUARIO reales,
+invitación de empresa Y de usuario, suspensión real, auditoría
+completa, y documentación — ya está construido y commiteado
+localmente.

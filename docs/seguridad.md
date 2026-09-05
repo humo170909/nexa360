@@ -12,6 +12,41 @@ pruebas de seguridad en Fase 16). Esto es lo que ya está decidido o aplicado.
 - Ningún secreto (claves de Supabase, API keys de email) vive en el código
   del frontend ni se sube a GitHub.
 
+## Por qué ocultar un botón NO es seguridad
+
+Un ejemplo concreto de este mismo proyecto: en `UsersTab.tsx`, el botón
+"Quitar de la empresa" solo se renderiza si `role === "ADMIN"`. Eso es
+código de React — corre en el navegador de quien está usando la app.
+Cualquiera puede abrir las herramientas de desarrollador (F12), editar
+el HTML en memoria, y hacer aparecer ese botón igual, sin ser ADMIN de
+nada. Ocultar el botón mejora la **experiencia** (a un USUARIO normal
+no le mostramos algo que no puede usar, no lo confundimos), pero no
+protege absolutamente nada — es una puerta sin llave con un cartel de
+"no entrar".
+
+## Por qué RLS sí es seguridad real
+
+`removeMember()` (`src/services/companies.ts`) hace, en el fondo, un
+`DELETE` HTTP contra Supabase. Ese `DELETE` no sabe ni le importa qué
+botón lo disparó — solo importa qué política RLS evalúa Postgres en ese
+momento:
+
+```sql
+create policy "company_users_delete_admin_or_superadmin"
+  on company_users for delete
+  using (is_company_admin(company_id) or is_superadmin());
+```
+
+Aunque alguien manipule el HTML para mostrarse el botón, o incluso salte
+la app por completo y mande el `DELETE` a mano con curl o Postman,
+Postgres evalúa `is_company_admin(company_id)` contra la sesión real de
+quien hace la petición — y si no es ADMIN de esa empresa, la operación
+se rechaza, sin importar qué decía la pantalla. **La diferencia clave**:
+el botón vive en el navegador del atacante, donde él tiene control
+total; la política RLS vive en el servidor de Supabase, donde no lo
+tiene. Esa es la frontera real de confianza en cualquier aplicación
+web — nunca el cliente, siempre el servidor.
+
 ## Riesgos contemplados (OWASP-relevantes) y cómo se abordan
 
 | Riesgo | Cómo se mitiga en NEXA360 |
