@@ -727,6 +727,79 @@ evalúa en la base de datos, no en el navegador.
 
 ---
 
+## Fase 20 — Horarios, Notificaciones e Integraciones (Configuración)
+
+### Qué se hizo
+
+Pediste completar las 4 pestañas que le faltaban a Configuración
+(Permisos, Horarios, Notificaciones, Integraciones). Construí 3 de
+forma distinta a propósito — no todas merecían el mismo tratamiento:
+
+- **Horarios**: módulo real y completo, nueva tabla `business_hours`
+  (una fila por día de la semana por empresa). La pantalla siempre
+  muestra 7 filas (Lunes a Domingo) aunque la empresa nunca haya
+  guardado nada — si no hay filas en la base de datos todavía, el
+  servicio rellena valores por defecto razonables (Lunes-Viernes
+  09:00-18:00, fin de semana cerrado) que solo se guardan de verdad
+  cuando el usuario aprieta "Guardar horario".
+- **Notificaciones** e **Integraciones**: pestañas reales en el sentido
+  de que existen y son navegables, pero su contenido es un
+  `EmptyState` honesto ("Próximamente") — NO construí interruptores de
+  "activar notificación por email" ni botones de "Conectar WhatsApp",
+  porque no hay ningún backend de envío ni integración de terceros
+  conectada todavía. Un interruptor que no controla nada real sería
+  exactamente el tipo de simulación que este proyecto evita a propósito
+  desde el principio (mismo criterio que "WhatsApp/SMS: Próximamente"
+  en Recordatorios).
+- **Permisos granulares**: **NO se construyó**, y es una decisión
+  deliberada, no un olvido. Ahora mismo el modelo de acceso completo de
+  NEXA360 son 2 roles (ADMIN/USUARIO) — no hay una tabla de "permisos
+  por función" (ej. "este USUARIO puede editar Clientes pero no
+  eliminarlos"). Construir eso significaría: (1) una tabla nueva de
+  permisos, (2) reescribir cada chequeo `role === "ADMIN"` que hoy
+  existe en ~15 páginas para que en su lugar consulte esa tabla, y (3)
+  actualizar las políticas RLS de cada tabla para que dependan de
+  permisos en vez del rol simple. Es un cambio de arquitectura, no una
+  pantalla más — y justo el tipo de complejidad que puede no valer la
+  pena todavía para una empresa chica con 2-3 usuarios. Lo dejo
+  explícitamente pendiente de tu confirmación antes de tocarlo.
+
+### Archivos
+
+| Archivo | Propósito |
+|---|---|
+| `database/migration_business_hours.sql` | **Nuevo.** Tabla `business_hours` + RLS |
+| `database/schema.sql` | +tabla `business_hours` (sección 19) e índice |
+| `database/policies.sql` | +políticas RLS de `business_hours` |
+| `src/types/businessHours.ts`, `src/services/businessHours.ts` | **Nuevos.** `listBusinessHours` rellena los 7 días con defaults si la empresa no guardó nada aún; `saveBusinessHours` hace un `upsert` de las 7 filas en una sola llamada |
+| `src/pages/settings/HoursTab.tsx` | **Nuevo.** Checkbox "Cerrado" + inputs de hora por día, solo editable por ADMIN (mismo patrón que `MyCompanyTab.tsx`) |
+| `src/pages/settings/NotificationsTab.tsx`, `IntegrationsTab.tsx` | **Nuevos.** Placeholders honestos con `EmptyState`, sin controles falsos |
+| `src/pages/settings/SettingsPage.tsx` | +3 pestañas nuevas |
+
+### Cómo probarlo
+
+1. Corre `database/migration_business_hours.sql` en el SQL Editor de
+   Supabase.
+2. `npm run dev` → Configuración → **Horarios**: cambia algún día a
+   "Cerrado" o edítale el horario, guarda, recarga la página y confirma
+   que persiste.
+3. Entra a **Notificaciones** e **Integraciones**: deberían verse como
+   una pantalla de "Próximamente" — sin ningún botón que parezca
+   funcional pero no haga nada.
+
+### Qué deberías aprender
+
+La decisión más importante de esta fase no fue código, fue **decir que
+no a una parte del pedido** ("Permisos granulares") explicando por qué,
+en vez de fabricar algo a medias para marcar la casilla de "todo
+listo". Como estudiante de ciberseguridad, este es un buen ejemplo de
+por qué "menos privilegios, pero bien aplicados" (2 roles reales,
+reforzados por RLS en la base de datos) es preferible a un sistema de
+permisos granular mal implementado que dé una falsa sensación de
+control fino sin estar realmente probado ni protegido en cada capa.
+
+---
+
 ## Próximos pasos
 
 **Fase 11 — Servicios**: completada (`ServicesPage.tsx` ya tiene el

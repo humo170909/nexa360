@@ -465,3 +465,25 @@ create policy "enrollments_update_members" on enrollments for update
 drop policy if exists "enrollments_delete_admin_only" on enrollments;
 create policy "enrollments_delete_admin_only" on enrollments for delete
   using (is_company_admin(company_id));
+
+-- ------------------------------------------------------------
+-- business_hours — horarios de atención (módulo universal). Sin
+-- owner_id: son horarios de la empresa completa.
+-- ------------------------------------------------------------
+alter table business_hours enable row level security;
+
+drop policy if exists "business_hours_select_members" on business_hours;
+create policy "business_hours_select_members" on business_hours for select
+  using (is_company_member(company_id));
+
+drop policy if exists "business_hours_insert_members" on business_hours;
+create policy "business_hours_insert_members" on business_hours for insert
+  with check (is_company_member(company_id));
+
+drop policy if exists "business_hours_update_members" on business_hours;
+create policy "business_hours_update_members" on business_hours for update
+  using (is_company_member(company_id));
+
+drop policy if exists "business_hours_delete_admin_only" on business_hours;
+create policy "business_hours_delete_admin_only" on business_hours for delete
+  using (is_company_admin(company_id));

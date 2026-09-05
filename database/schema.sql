@@ -358,6 +358,24 @@ create table enrollments (
 );
 
 -- ------------------------------------------------------------
+-- 19. business_hours — horarios de atención (módulo universal,
+--     Configuración → Horarios). Una fila por día de la semana por
+--     empresa (0 = domingo ... 6 = sábado). Ver
+--     database/migration_business_hours.sql si tu proyecto ya existía
+--     antes de esta tabla.
+-- ------------------------------------------------------------
+create table business_hours (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies (id) on delete cascade,
+  day_of_week smallint not null check (day_of_week between 0 and 6),
+  opens_at time,
+  closes_at time,
+  is_closed boolean not null default false,
+  created_at timestamptz not null default now(),
+  unique (company_id, day_of_week)
+);
+
+-- ------------------------------------------------------------
 -- Índices — filtrar por company_id es la operación más frecuente
 -- de toda la app; esto la mantiene rápida aunque crezcan los datos.
 -- ------------------------------------------------------------
@@ -389,3 +407,4 @@ create index idx_courses_teacher on courses (teacher_id);
 create index idx_enrollments_company on enrollments (company_id);
 create index idx_enrollments_student on enrollments (student_id);
 create index idx_enrollments_course on enrollments (course_id);
+create index idx_business_hours_company on business_hours (company_id);

@@ -3,23 +3,32 @@ import { PageHeader } from "../../components/PageHeader";
 import { MyCompanyTab } from "./MyCompanyTab";
 import { ProfileTab } from "./ProfileTab";
 import { UsersTab } from "./UsersTab";
+import { HoursTab } from "./HoursTab";
+import { NotificationsTab } from "./NotificationsTab";
+import { IntegrationsTab } from "./IntegrationsTab";
 import { SecurityTab } from "./SecurityTab";
 import { AuditTab } from "./AuditTab";
 
-type Tab = "company" | "profile" | "users" | "security" | "audit";
+type Tab = "company" | "profile" | "users" | "hours" | "notifications" | "integrations" | "security" | "audit";
 
 const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: "company", label: "Mi empresa", icon: "domain" },
   { key: "profile", label: "Perfil", icon: "person" },
   { key: "users", label: "Usuarios", icon: "group" },
+  { key: "hours", label: "Horarios", icon: "schedule" },
+  { key: "notifications", label: "Notificaciones", icon: "notifications" },
+  { key: "integrations", label: "Integraciones", icon: "hub" },
   { key: "security", label: "Seguridad", icon: "lock" },
   { key: "audit", label: "Auditoría", icon: "history" },
 ];
 
 // Roles ya es real (cambiar ADMIN/USUARIO desde la pestaña Usuarios), no
-// necesita pestaña propia. Permisos granulares, Horarios, Notificaciones
-// e Integraciones siguen sin pestaña — requieren tablas o backend que aún
-// no existen (ver docs/notificaciones.md). Se agregan cuando construyamos eso.
+// necesita pestaña propia. Permisos granulares sigue sin pestaña — hoy el
+// modelo es solo ADMIN/USUARIO; una tabla de permisos por función sería
+// una decisión de arquitectura aparte, no una pantalla más (ver
+// MANUAL-DESARROLLADOR.md, Fase 20). Notificaciones e Integraciones sí
+// tienen pestaña, pero como placeholders honestos (EmptyState) — no hay
+// backend de envío ni integraciones de terceros conectadas todavía.
 export function SettingsPage() {
   const [tab, setTab] = useState<Tab>("company");
 
@@ -48,6 +57,9 @@ export function SettingsPage() {
         {tab === "company" && <MyCompanyTab />}
         {tab === "profile" && <ProfileTab />}
         {tab === "users" && <UsersTab />}
+        {tab === "hours" && <HoursTab />}
+        {tab === "notifications" && <NotificationsTab />}
+        {tab === "integrations" && <IntegrationsTab />}
         {tab === "security" && <SecurityTab />}
         {tab === "audit" && <AuditTab />}
       </div>
