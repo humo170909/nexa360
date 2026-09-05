@@ -35,6 +35,7 @@ Cada tabla operativa tiene RLS habilitado en `database/policies.sql`. Resumen:
 | `clients` / `services` / `appointments` / `reminders` | Miembros | Miembros | Miembros | Solo ADMIN |
 | `audit_logs` | ADMIN o SUPERADMIN | Miembros (o SUPERADMIN si `company_id` es nulo) | **Nadie** (inmutable) | Solo SUPERADMIN |
 | `invitations` / `invitation_attempts` | Solo SUPERADMIN | Solo SUPERADMIN (`invitation_attempts`: nadie directamente, solo la función) | Solo SUPERADMIN | **Nadie** (se desactivan, no se borran) |
+| `audit_logs` (ampliado, Fase 22) | — (sin cambios) | + `company_id` nulo y `user_id = auth.uid()` — un usuario recién registrado, todavía sin empresa, puede registrar su propio evento (ej. `registration.failed`) | — | — |
 
 Detalle completo y explicación de cada decisión en `docs/supabase.md`.
 

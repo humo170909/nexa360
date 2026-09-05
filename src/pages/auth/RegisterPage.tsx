@@ -4,6 +4,8 @@ import { AuthLayout } from "../../layouts/AuthLayout";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { useAuth } from "../../hooks/useAuth";
+import { supabase } from "../../lib/supabaseClient";
+import { logAction } from "../../services/auditLogs";
 import {
   validateInvitationCode,
   redeemInvitationCode,
@@ -123,12 +125,26 @@ export function RegisterPage() {
     setLoading(false);
 
     if (!result.success) {
+      // El código pasó el Paso 1 pero falló acá (alguien más lo usó
+      // mientras tanto, expiró justo ahora, etc.) — a diferencia de un
+      // código inválido desde el principio, esto sí queda registrado:
+      // ya existe una cuenta creada sin empresa asociada.
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      await logAction(null, user?.id ?? null, "registration.failed", {
+        reason: result.reason,
+      });
       setError(
         INVALID_CODE_MESSAGE[result.reason as InvalidCodeReason] ??
           "No se pudo completar el registro. Contacta a soporte.",
       );
       return;
     }
+    // No se registra un evento "registration.success" aparte:
+    // redeem_invitation_code ya deja "invitation.used" en audit_logs — es
+    // el mismo momento visto desde otro ángulo, duplicarlo solo ensucia
+    // el historial.
     setStep("success");
   }
 

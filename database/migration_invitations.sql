@@ -109,6 +109,22 @@ create policy "invitation_attempts_select_superadmin" on invitation_attempts for
 -- validate_invitation_code, que al ser SECURITY DEFINER no la necesita.
 
 -- ------------------------------------------------------------
+-- 2b. audit_logs — deja que un usuario YA autenticado (recién hecho
+--     signUp(), todavía sin empresa) registre su propio evento, para
+--     poder loguear "registration.failed" si el canje de la invitación
+--     falla después del registro (ver RegisterPage.tsx). No cambia
+--     quién puede LEER logs — solo quién puede escribir el suyo propio.
+-- ------------------------------------------------------------
+drop policy if exists "audit_logs_insert_members_or_superadmin" on audit_logs;
+create policy "audit_logs_insert_members_or_superadmin"
+  on audit_logs for insert
+  with check (
+    (company_id is not null and is_company_member(company_id))
+    or (company_id is null and is_superadmin())
+    or (company_id is null and user_id = auth.uid())
+  );
+
+-- ------------------------------------------------------------
 -- 3. La política insegura que este archivo reemplaza
 -- ------------------------------------------------------------
 

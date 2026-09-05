@@ -1042,3 +1042,34 @@ primer login, sin que el usuario tenga que volver a escribir nada.
 - **No todo hash es igual** — la elección entre un hash rápido (SHA-256)
   y uno lento (bcrypt) depende de la entropía de lo que estás
   protegiendo, no es "siempre usa el más seguro posible".
+
+### Addendum — auditoría completa (los 5 eventos que pediste)
+
+Tu pedido original (sección 23 del brief) listaba 5 eventos a auditar:
+`INVITATION_CREATED`, `INVITATION_USED`, `INVITATION_DISABLED`,
+`REGISTRATION_SUCCESS`, `REGISTRATION_FAILED`. Los primeros 3 ya
+quedaron en la primera pasada de esta fase; los últimos 2 necesitaron un
+ajuste adicional que vale la pena que entiendas:
+
+- **`registration.failed`** solo se registra cuando el canje de la
+  invitación falla DESPUÉS de que la cuenta ya existe (alguien más usó
+  el mismo código mientras tanto, expiró justo en ese momento, etc.) —
+  ahí sí hay un usuario autenticado real a quien atribuirle el evento.
+  Un fallo del `signUp()` en sí (contraseña débil, correo ya
+  registrado) **no** se audita en `audit_logs`: en ese punto no existe
+  ningún usuario todavía, no hay `user_id` real al que atribuirle el
+  evento, y guardar un log sin dueño sería inútil (no se podría cruzar
+  con nada). Supabase Auth ya guarda sus propios registros de esos
+  intentos a nivel de autenticación.
+- **`registration.success`** deliberadamente NO se creó como evento
+  aparte — `invitation.used` (que ya se registraba dentro de
+  `redeem_invitation_code`) es exactamente el mismo momento visto desde
+  otro ángulo. Registrarlo dos veces con nombres distintos solo
+  ensuciaría el historial de auditoría sin agregar información nueva.
+- Para que `registration.failed` se pudiera guardar, hizo falta ampliar
+  la política de `insert` de `audit_logs`: antes solo un miembro de una
+  empresa (o un SUPERADMIN) podía escribir un log. Se agregó
+  `company_id is null and user_id = auth.uid()` — un usuario recién
+  registrado, todavía sin empresa, ahora puede registrar SU PROPIO
+  evento. Esto no afecta quién puede **leer** logs (esa política no
+  cambió), solo abre una puerta de escritura muy angosta y específica.

@@ -235,12 +235,18 @@ create policy "audit_logs_select_admin_or_superadmin"
   on audit_logs for select
   using (is_company_admin(company_id) or is_superadmin());
 
+-- Fase 22: se agregó "or (company_id is null and user_id = auth.uid())"
+-- — deja que un usuario YA autenticado (con signUp() ya hecho) registre
+-- su propio evento antes de tener empresa (ej. "registration.failed" si
+-- el canje de una invitación falla después del registro). Sigue sin
+-- dejar que nadie lea logs ajenos: la política de SELECT no cambió.
 drop policy if exists "audit_logs_insert_members_or_superadmin" on audit_logs;
 create policy "audit_logs_insert_members_or_superadmin"
   on audit_logs for insert
   with check (
     (company_id is not null and is_company_member(company_id))
     or (company_id is null and is_superadmin())
+    or (company_id is null and user_id = auth.uid())
   );
 
 drop policy if exists "audit_logs_delete_superadmin_only" on audit_logs;
