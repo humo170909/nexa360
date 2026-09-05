@@ -1311,3 +1311,78 @@ mensaje".
   hacer del lado del servidor, con una función que sí tiene permiso de
   mirar esa tabla — y ni siquiera devuelve el correo al frontend, solo
   un `true`/`false` disfrazado de `success`.
+
+---
+
+## Fase 26 — Los eventos de auditoría que faltaban
+
+### Qué se hizo
+
+De tu lista de 9 eventos (sección 20 de tu pedido), 7 ya estaban
+cubiertos entre las Fases 22, 24 y 25. Faltaban 2, y uno de ellos reveló
+que faltaba una funcionalidad completa, no solo un log:
+
+- **`SUPERADMIN_LOGIN`** → `superadmin.login`, agregado en
+  `LoginPage.tsx`. A propósito **solo se audita el login de un
+  SUPERADMIN**, no el de cualquier usuario — un login de empresa normal
+  pasa decenas de veces al día sin que le importe a nadie revisarlo; el
+  acceso a la cuenta con control de toda la plataforma sí vale la pena
+  dejarlo registrado.
+- **`USER_DISABLED`** → acá no faltaba solo el log, faltaba el botón:
+  **no existía ninguna forma de quitar a alguien de una empresa**.
+  `UsersTab.tsx` solo dejaba cambiar el rol de un miembro, nunca
+  eliminarlo. Se agregó la acción "Quitar de la empresa" (ícono
+  `person_remove`, mismo resguardo que el cambio de rol: nunca puedes
+  quitarte a ti mismo), que registra `company_user.removed`.
+
+### Un matiz sobre qué significa "deshabilitar" acá
+
+"Quitar de la empresa" borra la fila de `company_users` — la persona
+**pierde acceso a esa empresa de inmediato** (gracias al RLS ya
+existente), pero su cuenta de Supabase Auth sigue existiendo. Puede
+volver a entrar a NEXA360, pero cae en `NoCompanyPage` ("no tienes
+empresa asociada") hasta que alguien la invite de nuevo. Deshabilitar
+la CUENTA completa (que ni siquiera pueda iniciar sesión) es una
+operación distinta — requiere la API de administración de Supabase Auth
+con la `SERVICE_ROLE_KEY`, que por diseño nunca vive en el frontend.
+Eso quedaría para una Edge Function futura, igual que `send-reminders`
+(Fase 21), si alguna vez hace falta bloquear la cuenta entera y no solo
+el acceso a una empresa.
+
+### Cómo se mapean los otros 7 (para que quede completo el registro)
+
+| Tu evento | Nombre real en el código | Desde |
+|---|---|---|
+| `COMPANY_CREATED` | `invitation.used` (mismo momento, no duplicado — ver Fase 22) | Fase 22 |
+| `INVITATION_CREATED` | `invitation.created` | Fase 22 |
+| `INVITATION_USED` | `invitation.used` | Fase 22 |
+| `INVITATION_CANCELLED` | `invitation.disabled` | Fase 22 |
+| `COMPANY_SUSPENDED` | `company.suspended` (+ `company.activated`, el reverso) | Fase 24 |
+| `USER_INVITED` | `user.invited` | Fase 25 |
+| `USER_INVITATION_ACCEPTED` | `user_invitation.accepted` | Fase 25 |
+
+### Archivos
+
+| Archivo | Propósito |
+|---|---|
+| `src/pages/auth/LoginPage.tsx` | +`logAction` para `superadmin.login` |
+| `src/services/companies.ts` | +`removeMember` (borra la fila de `company_users` — RLS ya lo permitía desde la Fase 5, solo faltaba la función) |
+| `src/pages/settings/UsersTab.tsx` | +acción "Quitar de la empresa" en la tabla de miembros |
+
+### Cómo probarlo
+
+1. Inicia sesión con tu cuenta SUPERADMIN — ve a `/superadmin/audit`,
+   debería aparecer `superadmin.login`.
+2. Con una cuenta ADMIN, ve a Configuración → Usuarios, y quita a algún
+   colaborador de prueba — confirma que desaparece de la lista y que
+   (si pruebas con su sesión) cae en la pantalla de "no tienes empresa".
+3. Revisa Auditoría de esa empresa: debe aparecer `company_user.removed`.
+
+### Qué deberías aprender
+
+Ir a "completar los eventos de auditoría" terminó revelando un hueco
+real de funcionalidad (no se podía quitar a nadie de una empresa) — la
+auditoría no es solo "agregar una línea de log", a veces expone que la
+acción que se supone hay que auditar ni siquiera existe todavía. Vale
+la pena tratar cada evento de tu lista como una pregunta ("¿puedo
+provocar esto hoy?") antes de asumir que solo falta registrarlo.

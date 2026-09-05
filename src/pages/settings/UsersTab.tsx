@@ -4,6 +4,7 @@ import { useCompany } from "../../hooks/useCompany";
 import {
   listCompanyUsersDetailed,
   updateMemberRole,
+  removeMember,
   type CompanyMemberDetailed,
 } from "../../services/companies";
 import {
@@ -74,6 +75,27 @@ export function UsersTab() {
       new_role: newRole,
     });
     setSavingId(null);
+    refresh();
+  }
+
+  async function handleRemove(member: CompanyMemberDetailed) {
+    if (!company) return;
+    if (
+      !confirm(
+        `¿Quitar a "${member.full_name ?? "este usuario"}" de la empresa? Pierde acceso de inmediato — su cuenta sigue existiendo, solo deja de pertenecer a esta empresa.`,
+      )
+    )
+      return;
+    setSavingId(member.companyUserId);
+    const { error } = await removeMember(member.companyUserId);
+    setSavingId(null);
+    if (error) {
+      alert("No se pudo quitar al usuario (revisa tus permisos).");
+      return;
+    }
+    await logAction(company.id, user?.id ?? null, "company_user.removed", {
+      target_user_id: member.id,
+    });
     refresh();
   }
 
@@ -155,6 +177,28 @@ export function UsersTab() {
                         <option value="ADMIN">ADMIN</option>
                         <option value="USUARIO">USUARIO</option>
                       </select>
+                    );
+                  },
+                },
+                {
+                  header: "",
+                  align: "right",
+                  render: (m: CompanyMemberDetailed) => {
+                    // Mismo resguardo que el cambio de rol: nunca te
+                    // puedes quitar a ti mismo (te dejaría sin poder
+                    // administrar la empresa si eras el único ADMIN).
+                    const isSelf = m.id === user?.id;
+                    if (!isAdmin || isSelf) return null;
+                    return (
+                      <button
+                        onClick={() => handleRemove(m)}
+                        disabled={savingId === m.companyUserId}
+                        className="text-on-surface-variant hover:text-error disabled:opacity-50"
+                        aria-label="Quitar de la empresa"
+                        title="Quitar de la empresa"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">person_remove</span>
+                      </button>
                     );
                   },
                 },

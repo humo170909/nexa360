@@ -5,6 +5,7 @@ import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabaseClient";
+import { logAction } from "../../services/auditLogs";
 
 export function LoginPage() {
   const { signIn } = useAuth();
@@ -43,7 +44,18 @@ export function LoginPage() {
       .single();
 
     setLoading(false);
-    navigate(profile?.is_superadmin ? "/superadmin" : "/dashboard");
+
+    if (profile?.is_superadmin) {
+      // Solo se audita el login de un SUPERADMIN, no el de cualquier
+      // usuario — es la cuenta con acceso a toda la plataforma, tiene
+      // sentido dejar rastro de cuándo entra. Un login normal de
+      // empresa no se audita (sería ruido: pasa decenas de veces al día
+      // sin que le importe a nadie revisarlo).
+      await logAction(null, user?.id ?? null, "superadmin.login", {});
+      navigate("/superadmin");
+      return;
+    }
+    navigate("/dashboard");
   }
 
   return (

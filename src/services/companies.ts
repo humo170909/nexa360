@@ -92,3 +92,13 @@ export async function updateMemberRole(companyUserId: string, role: CompanyRole)
   const { error } = await supabase.from("company_users").update({ role }).eq("id", companyUserId);
   return { error: error?.message ?? null };
 }
+
+// Quita a alguien de la empresa (borra su fila en company_users, no su
+// cuenta de Supabase Auth — sigue pudiendo entrar a NEXA360, solo que
+// sin ninguna empresa hasta que lo inviten de nuevo). Protegido por RLS
+// ("company_users_delete_admin_or_superadmin", ya existía desde la
+// Fase 5) — solo un ADMIN de la empresa o un SUPERADMIN pueden hacerlo.
+export async function removeMember(companyUserId: string) {
+  const { error } = await supabase.from("company_users").delete().eq("id", companyUserId);
+  return { error: error?.message ?? null };
+}
