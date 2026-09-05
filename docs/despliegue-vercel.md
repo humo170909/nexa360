@@ -1,26 +1,12 @@
 # Despliegue en Vercel — NEXA360
 
-> Esto se ejecuta recién en la **Fase 17**, cuando el proyecto tenga
-> funcionalidad real que valga la pena publicar.
+## 1. Subir el proyecto a GitHub — ya hecho ✓
 
-## 1. Subir el proyecto a GitHub
-
-Esta máquina sí tiene Git instalado. Cuando llegue el momento:
-
-```powershell
-cd "nexa360"
-git init
-git add .
-git status   # confirma que NO aparezca .env.local en la lista
-git commit -m "Estado inicial NEXA360"
-git remote add origin https://github.com/TU-USUARIO/nexa360.git
-git branch -M main
-git push -u origin main
-```
-
-Si `git push` pide autenticación, GitHub ya no acepta contraseña de la
-cuenta directamente — se necesita un **Personal Access Token** (Settings →
-Developer settings → Personal access tokens) o `gh auth login` (GitHub CLI).
+El repositorio ya está en `https://github.com/humo170909/nexa360`, con
+todo el trabajo hasta la Fase 27 publicado. No hay nada que hacer acá,
+solo confirma con `git status` (dentro de `nexa360/`) que no quede
+ningún commit local sin subir antes de conectar Vercel — un deploy
+siempre construye desde lo que ya está en GitHub, no desde tu disco.
 
 ## 2. Conectar GitHub con Vercel
 
